@@ -1,6 +1,5 @@
 from utils.data_reader import SinD
 from shapely.geometry import Point, LineString
-
 import numpy as np
 import pandas as pd
 import os
@@ -9,53 +8,54 @@ ROOT = os.getcwd()
 
 
 def calculate_angle_between_vectors(v1, v2):
-    # TODO test thoroughly, recreate the 45 degrees angle
-    unit_vector_1 = v1 / np.linalg.norm(v1)
-    unit_vector_2 = v2 / np.linalg.norm(v2)
-    dot_product = np.dot(unit_vector_1, unit_vector_2)
-    angle = np.arccos(dot_product)
-    return angle
+    # Convert the input lists to NumPy arrays if they aren't already
+    v1, v2 = np.array(v1), np.array(v2)
 
-def calculate_turning_angles(path):
-    """Calculate turning angles along a path."""
-    angles = []
-    for i in range(1, len(path.coords) - 1):
-        p0 = np.array(path.coords[i - 1])
-        p1 = np.array(path.coords[i])
-        p2 = np.array(path.coords[i + 1])
+    # Calculate the dot product
+    dot_product = np.dot(v1, v2)
 
-        vec1 = p1 - p0
-        vec2 = p2 - p1
+    # Calculate the norms of each vector
+    norm_v1, norm_v2 = np.linalg.norm(v1), np.linalg.norm(v2)
 
-        if np.linalg.norm(vec1) == 0 or np.linalg.norm(vec2) == 0:
-            continue  # Skip if either vector is zero to avoid division by zero
+    # Calculate the cosine of the angle
+    cos_theta = dot_product / (norm_v1 * norm_v2)
 
-        angle = calculate_angle_between_vectors(vec1, vec2)
-        angles.append(angle)
+    # Calculate the angle in radians and then convert to degrees
+    angle_rad = np.arccos(np.clip(cos_theta, -1.0, 1.0))  # Clip for floating point precision
+    angle_deg = np.degrees(angle_rad)
 
-    return angles
+    return angle_deg
+
 
 def calculate_direction_change(x, y):
     angles = []
     for i in range(2, len(x)):
-        vec1 = [x[i-1] - x[i-2], y[i-1] - y[i-2]]
-        vec2 = [x[i] - x[i-1], y[i] - y[i-1]]
+        vec1 = np.array([x[i-1] - x[i-2], y[i-1] - y[i-2]])
+        vec2 = np.array([x[i] - x[i-1], y[i] - y[i-1]])
         angle = calculate_angle_between_vectors(vec1, vec2)
         angles.append(angle)
+        
     return np.nan_to_num(angles)  # Replace NaNs with 0
+
 
 def is_crossing_street(pedestrian_path, map):
     return pedestrian_path.intersects(map.road_poly) or pedestrian_path.intersects(map.crosswalk_poly) \
         or pedestrian_path.intersects(map.intersection_poly) or pedestrian_path.intersects(map.gap_poly)
 
+
 def is_illegal_crossing(pedestrian_path, map):
     return (pedestrian_path.intersects(map.road_poly) or pedestrian_path.intersects(map.intersection_poly))
 
-def has_made_turn(pedestrian_path, angle_threshold=30):
-    # Assuming pedestrian_path is a LineString
-    # Calculate the turning angles along the path
-    angles = calculate_turning_angles(pedestrian_path)
-    return any(angle > angle_threshold for angle in angles)
+
+def has_made_turn(x, y, angle_threshold=30):
+    # Calculate if direction has changed between the first and last point more than threshold (degrees)
+    # return any(angle > angle_threshold for angle in angles)
+    start_vector = np.array([x[1] - x[0], y[1] - y[0]])
+    end_vector = np.array([x[-1] - x[-2], y[-1] - y[-2]])
+
+    angle = calculate_angle_between_vectors(start_vector, end_vector)
+    return angle > 30
+
 
 def check_point_location(point):
     point_location = ''
@@ -76,6 +76,16 @@ def check_point_location(point):
     return point_location
 
 
+def count_different_locations(x, y):
+    data = {'sidewalk0__count': 0, 'sidewalk1__count': 0, 'sidewalk2__count': 0, 'sidewalk3__count': 0, 'gap__count': 0, 'road__count': 0,
+               'inter__count': 0, 'crosswalk__count': 0, '': 0}
+    for x_point, y_point in zip(x, y):
+        data[check_point_location(Point(x_point, y_point)) + '__count'] +=1
+
+    del data['']
+    return data
+
+
 def get_recorded_features(pedestrian_id, dataset, input_len):
     if type(dataset) is not dict:
         data = []
@@ -84,33 +94,84 @@ def get_recorded_features(pedestrian_id, dataset, input_len):
             data.append(pd.DataFrame(dataset).iloc[pedestrian_id,:][idx:idx+input_len])
             idx += input_len
             
-        x, y, vx, vy, ax, ay = data[0].reset_index(drop=True), data[1].reset_index(drop=True), \
-            data[2].reset_index(drop=True), data[3].reset_index(drop=True), data[4].reset_index(drop=True), data[5].reset_index(drop=True)
+        x, y, vx, vy, ax, ay = data[0].to_numpy(), data[1].to_numpy(), \
+            data[2].to_numpy(), data[3].to_numpy(), data[4].to_numpy(), data[5].to_numpy()
 
     else:    
-        x, y, vx, vy, ax, ay = dataset[pedestrian_id]['x'].reset_index(drop=True), dataset[pedestrian_id]['y'].reset_index(drop=True), \
-            dataset[pedestrian_id]['vx'].reset_index(drop=True), dataset[pedestrian_id]['vy'].reset_index(drop=True), dataset[pedestrian_id]['ax'].reset_index(drop=True), dataset[pedestrian_id]['ay'].reset_index(drop=True)
+        x, y, vx, vy, ax, ay = dataset[pedestrian_id]['x'].to_numpy(), dataset[pedestrian_id]['y'].to_numpy(), \
+            dataset[pedestrian_id]['vx'].to_numpy(), dataset[pedestrian_id]['vy'].to_numpy(), dataset[pedestrian_id]['ax'].to_numpy(), dataset[pedestrian_id]['ay'].to_numpy()
 
     return  x, y, vx, vy, ax, ay
 
-def create_dataframe(dataset, input_len):
+
+def get_data_where_pedestrians_move(attributes, threshold: float = 0.5, velocity_filter: bool = True):
+    v = np.linalg.norm(list(zip(attributes['vx'], attributes['vy'])), axis=1)
+    _id = np.where(v >= threshold) if velocity_filter else np.where(v >= -1) # make sure pedestrians are moving
+    new_attributes = {}
+
+    for key in attributes.keys():
+        new_attributes[key] = attributes[key].iloc[_id]
+
+    return new_attributes
+
+
+def split_pedestrian_data(data, remove_staionary_data: bool = False, chunk_size: float =90):
+    """
+    Split pedestrian data into chunks.
+
+    :param data: Dictionary of pedestrian data.
+    :param chunk_size: Maximum number of steps in each chunk.
+    :return: Dictionary with split data.
+    """
+    split_data = {}
+    idx = 0
+    for _, attributes in data.items():
+        # Determine the number of chunks needed for this pedestrian
+        new_attributes = attributes
+        if remove_staionary_data:
+            new_attributes = get_data_where_pedestrians_move(attributes)
+
+        extra_data = len(new_attributes['x']) % 90
+        flag_extra_data = extra_data > 5
+        num_chunks = len(new_attributes['x']) // chunk_size + (1 if flag_extra_data else 0)
+
+        for i in range(num_chunks):
+            split_data[idx] = {}
+            max_size = chunk_size + (extra_data if ((not flag_extra_data) and (i == num_chunks-1)) else 0)
+            for attr, values in new_attributes.items():
+                start_index = i * chunk_size
+                end_index = start_index + max_size
+                split_data[idx][attr] = values[start_index:end_index]
+            
+            idx += 1
+
+    return split_data
+
+
+def create_dataframe(dataset, input_len=90):
     df = pd.DataFrame()
-    for pedestrian_id in range(len(dataset)):
-        x, y, vx, vy, ax, ay = get_recorded_features(pedestrian_id, dataset, input_len)
+    for key in range(len(dataset)):
+        x, y, vx, vy, ax, ay = get_recorded_features(key, dataset, input_len)
 
-        speed = pd.DataFrame(np.sqrt(np.square(vx.to_numpy()) + np.square(vy.to_numpy())))
-        acceleration = pd.DataFrame(np.sqrt(np.square(ax.to_numpy()) + np.square(ay.to_numpy())))
+        speed = pd.DataFrame(np.sqrt(np.square(vx) + np.square(vy)))
+        acceleration = pd.DataFrame(np.sqrt(np.square(ax) + np.square(ay)))
         direction_change = pd.DataFrame(calculate_direction_change(x, y))
-        proximity_to_crosswalk = Point(x[0], y[0]).distance(map.crosswalk_poly)
-        proximity_to_road_start = Point(x[0], y[0]).distance(map.road_poly)
-        proximity_to_road_min = min([Point(x[i], y[i]).distance(map.road_poly) for i in range(len(x))])
-        proximity_to_inter_start = Point(x[0], y[0]).distance(map.intersection_poly)
-        proximity_to_inter_min = min([Point(x[i], y[i]).distance(map.intersection_poly) for i in range(len(x))])
 
-        pedestrian_path = LineString(zip(np.array(x), np.array(y))) 
+        proximity_to_crosswalk__start = Point(x[0], y[0]).distance(map.crosswalk_poly)
+        proximity_to_crosswalk__last = Point(x[-1], y[-1]).distance(map.crosswalk_poly)
+
+        proximity_to_road__start = Point(x[0], y[0]).distance(map.road_poly)
+        proximity_to_road__last = Point(x[-1], y[-1]).distance(map.road_poly)
+        proximity_to_road__min = min([Point(x[i], y[i]).distance(map.road_poly) for i in range(len(x))])
+
+        proximity_to_inter__start = Point(x[0], y[0]).distance(map.intersection_poly)
+        proximity_to_inter__last = Point(x[-1], y[-1]).distance(map.intersection_poly)
+        proximity_to_inter__min = min([Point(x[i], y[i]).distance(map.intersection_poly) for i in range(len(x))])
+
+        pedestrian_path = LineString(zip(x, y))
         crossing_feature = is_crossing_street(pedestrian_path, map)
         illegal_crossing_feature = is_illegal_crossing(pedestrian_path, map)
-        turn_feature = has_made_turn(pedestrian_path)
+        turn_feature = has_made_turn(x, y)
 
         # acceleration
         new_row_data = {}
@@ -120,6 +181,8 @@ def create_dataframe(dataset, input_len):
         new_row_data['acc__median'] = acceleration.quantile(.5)[0]
         new_row_data['acc__first_quantile'] = acceleration.quantile(.25)[0]
         new_row_data['acc__last_quantile'] = acceleration.quantile(.75)[0]
+        new_row_data['acc__start'] = acceleration.iloc[0][0]
+        new_row_data['acc__last'] = acceleration.iloc[-1][0]
 
         # speed
         new_row_data['speed__min'] = speed.min()[0]
@@ -128,6 +191,8 @@ def create_dataframe(dataset, input_len):
         new_row_data['speed__median'] = speed.quantile(.5)[0]
         new_row_data['speed__first_quantile'] = speed.quantile(.25)[0]
         new_row_data['speed__last_quantile'] = speed.quantile(.75)[0]
+        new_row_data['speed__start'] = speed.iloc[0][0]
+        new_row_data['speed__last'] = speed.iloc[-1][0]
 
         # direction change
         new_row_data['direction_change__min'] = direction_change.min()[0]
@@ -136,41 +201,49 @@ def create_dataframe(dataset, input_len):
         new_row_data['direction_change__median'] = direction_change.quantile(.5)[0]
         new_row_data['direction_change__first_quantile'] = direction_change.quantile(.25)[0]
         new_row_data['direction_change__last_quantile'] = speed.quantile(.75)[0]
+        new_row_data['direction_change__start'] = direction_change.iloc[0][0]
+        new_row_data['direction_change__last'] = direction_change.iloc[-1][0]
 
         # proximity_to_crosswalk
-        new_row_data['proximity_to_crosswalk__start'] = proximity_to_crosswalk
+        new_row_data['proximity_to_crosswalk__start'] = proximity_to_crosswalk__start
+        new_row_data['proximity_to_crosswalk__last'] = proximity_to_crosswalk__last
 
         # proximity_to_road
-        new_row_data['proximity_to_road__start'] = proximity_to_road_start
-        new_row_data['proximity_to_road__min'] = proximity_to_road_min
+        new_row_data['proximity_to_road__start'] = proximity_to_road__start
+        new_row_data['proximity_to_road__last'] = proximity_to_road__last
+        new_row_data['proximity_to_road__min'] = proximity_to_road__min
 
         # proximity_to_intersection
-        new_row_data['proximity_to_inter__start'] = proximity_to_inter_start
-        new_row_data['proximity_to_inter__min'] = proximity_to_inter_min
+        new_row_data['proximity_to_inter__start'] = proximity_to_inter__start
+        new_row_data['proximity_to_inter__last'] = proximity_to_inter__last
+        new_row_data['proximity_to_inter__min'] = proximity_to_inter__min
 
         # Action Features
-        # TODO add last point
         new_row_data['crossing'] = crossing_feature
         new_row_data['illegal_crossing'] = illegal_crossing_feature
         new_row_data['turning'] = turn_feature
 
         # Starting Point Feature
-        # TODO add the count of points in each location type, 0 if not in a location type
-        new_row_data['starting_point'] = check_point_location(Point(x[0], y[0]))
+        new_row_data['starting_point'] = check_point_location(Point(x[0], y[0])) + '__start'
+        new_row_data['ending_point'] = check_point_location(Point(x[-1], y[-1])) + '__end'
+        new_row_data.update( count_different_locations(x, y))
 
         new_row_df = pd.DataFrame([new_row_data])
         df = pd.concat([df, new_row_df], ignore_index=True)
-
+    
     return df
+
 
 if __name__ == "__main__":
     sind = SinD()
     map = sind.map
     input_len = 90
-    # TODO Keep 90 e.g steps (experiment with that number) without overlaping and keep the last value as a feature of all the variables (e.g direction, speed, acc etc.) 
+    # TODO Keep 90 e.g steps (experiment with that number) without overlaping and keep the last value as a feature of all the variables (e.g direction, speed, acc etc.)
     # ADD also heading
     # dataset, data_type = sind.data(input_len=input_len), ''
-    dataset, data_type = sind.pedestrian_data, '__full'
-
+    # dataset, data_type = sind.pedestrian_data, '__full'
+    # dataset, data_type = split_pedestrian_data(sind.pedestrian_data), '__full_splitted'
+    dataset, data_type = split_pedestrian_data(sind.pedestrian_data, remove_staionary_data=True), '__full_splitted_without_stationary_data'
+    
     df = create_dataframe(dataset, input_len)
     df.to_csv(ROOT + f"/dataset_created{data_type}.csv", encoding='utf-8', index=False)
