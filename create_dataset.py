@@ -54,7 +54,7 @@ def has_made_turn(x, y, angle_threshold=30):
     end_vector = np.array([x[-1] - x[-2], y[-1] - y[-2]])
 
     angle = calculate_angle_between_vectors(start_vector, end_vector)
-    return angle > 30
+    return angle > angle_threshold
 
 
 def check_point_location(point):
@@ -86,7 +86,9 @@ def count_different_locations(x, y):
     return data
 
 
-def get_recorded_features(pedestrian_id, dataset, input_len):
+def get_recorded_features(pedestrian_id, dataset, input_len=90):
+    # input length: moving window when data in arrays are povided (not related to chunk size)
+
     if type(dataset) is not dict:
         data = []
         idx = 0
@@ -96,8 +98,7 @@ def get_recorded_features(pedestrian_id, dataset, input_len):
             
         x, y, vx, vy, ax, ay = data[0].to_numpy(), data[1].to_numpy(), \
             data[2].to_numpy(), data[3].to_numpy(), data[4].to_numpy(), data[5].to_numpy()
-
-    else:    
+    else:
         x, y, vx, vy, ax, ay = dataset[pedestrian_id]['x'].to_numpy(), dataset[pedestrian_id]['y'].to_numpy(), \
             dataset[pedestrian_id]['vx'].to_numpy(), dataset[pedestrian_id]['vy'].to_numpy(), dataset[pedestrian_id]['ax'].to_numpy(), dataset[pedestrian_id]['ay'].to_numpy()
 
@@ -123,16 +124,20 @@ def split_pedestrian_data(data, remove_staionary_data: bool = False, chunk_size:
     :param chunk_size: Maximum number of steps in each chunk.
     :return: Dictionary with split data.
     """
+    MIN_DATA_INCLUDED = 5
     split_data = {}
     idx = 0
-    for _, attributes in data.items():
+    pedestrian_ids = []
+
+
+    for pedestrian_id, attributes in data.items():
         # Determine the number of chunks needed for this pedestrian
         new_attributes = attributes
         if remove_staionary_data:
             new_attributes = get_data_where_pedestrians_move(attributes)
 
-        extra_data = len(new_attributes['x']) % 90
-        flag_extra_data = extra_data > 5
+        extra_data = len(new_attributes['x']) % chunk_size
+        flag_extra_data = extra_data > MIN_DATA_INCLUDED
         num_chunks = len(new_attributes['x']) // chunk_size + (1 if flag_extra_data else 0)
 
         for i in range(num_chunks):
@@ -143,9 +148,10 @@ def split_pedestrian_data(data, remove_staionary_data: bool = False, chunk_size:
                 end_index = start_index + max_size
                 split_data[idx][attr] = values[start_index:end_index]
             
+            pedestrian_ids.append(pedestrian_id)
             idx += 1
 
-    return split_data
+    return split_data, pd.DataFrame(pedestrian_ids)
 
 
 def create_dataframe(dataset, input_len=90):
@@ -233,17 +239,38 @@ def create_dataframe(dataset, input_len=90):
     
     return df
 
+def create_dataframes_with_different_chunk_sizes(start=5, end=90, step=5):
+
+    for chunk_size in range(start, end, step):
+        (dataset, pedestrian_ids), data_type = split_pedestrian_data(sind.pedestrian_data, remove_staionary_data=False, chunk_size=chunk_size), f'__full_splitted_data_{chunk_size}'
+    
+        # df = create_dataframe(dataset)
+        # df.to_csv(ROOT + f"/dataset_created{data_type}.csv", encoding='utf-8', index=False)
+        pedestrian_ids.to_csv(ROOT + f"/pedestrian_ids_{data_type}.csv", encoding='utf-8', index=False)
+
+
+def find_pedestrians_with_high_velocity():
+    ids_array = []
+    pedestrian_data = sind.pedestrian_data
+    for key, data in pedestrian_data.items():
+        v = np.sqrt(np.square(data['vx'] ) + np.square(data['vy'] ))
+        if any(v > 5.5): ids_array.append(key)
+
+    ids_array
+    
+
 
 if __name__ == "__main__":
     sind = SinD()
     map = sind.map
-    input_len = 90
-    # TODO Keep 90 e.g steps (experiment with that number) without overlaping and keep the last value as a feature of all the variables (e.g direction, speed, acc etc.)
-    # ADD also heading
-    # dataset, data_type = sind.data(input_len=input_len), ''
-    # dataset, data_type = sind.pedestrian_data, '__full'
-    # dataset, data_type = split_pedestrian_data(sind.pedestrian_data), '__full_splitted'
-    dataset, data_type = split_pedestrian_data(sind.pedestrian_data, remove_staionary_data=True), '__full_splitted_without_stationary_data'
+    # input_len = 90
+    # # TODO Keep 90 e.g steps (experiment with that number) without overlaping and keep the last value as a feature of all the variables (e.g direction, speed, acc etc.)
+    # # ADD also heading
+    # # dataset, data_type = sind.data(input_len=input_len), ''
+    # # dataset, data_type = sind.pedestrian_data, '__full'
+    # # dataset, data_type = split_pedestrian_data(sind.pedestrian_data), '__full_splitted'
+    # dataset, data_type = split_pedestrian_data(sind.pedestrian_data, remove_staionary_data=True), '__full_splitted_without_stationary_data'
     
-    df = create_dataframe(dataset, input_len)
-    df.to_csv(ROOT + f"/dataset_created{data_type}.csv", encoding='utf-8', index=False)
+    # df = create_dataframe(dataset, input_len)
+    # df.to_csv(ROOT + f"/dataset_created{data_type}.csv", encoding='utf-8', index=False)
+    create_dataframes_with_different_chunk_sizes(start=90, end=95)
