@@ -138,3 +138,6 @@ weights*
 .DS_Store
 
 resources*
+data_generated*
+
+.idea*
