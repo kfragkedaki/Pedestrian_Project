@@ -16,8 +16,6 @@ import os
 import sys
 import time
 import math
-import pickle
-import json
 
 # 3rd party packages
 from tqdm import tqdm
@@ -27,13 +25,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 # Project modules
 from options import Options
-from models.model import setup, pipeline_factory, validate, check_progress, NEG_METRICS
+from model.model import setup, pipeline_factory, validate, check_progress, NEG_METRICS
 from utils import utils
 from datasets.data import data_factory, Normalizer
 from datasets.datasplit import split_dataset, save_indices
-from models.encoder import model_factory
-from models.loss import get_loss_module
-from models.optimizers import get_optimizer
+from model.encoder import model_factory
+from model.loss import get_loss_module
+from model.optimizers import get_optimizer
 
 
 def main(config):
@@ -110,37 +108,23 @@ def main(config):
 
     loss_module = get_loss_module(config)
 
-    # if config['test_only'] == 'testset':  # Only evaluate and skip training
-    #     dataset_class, collate_fn, runner_class = pipeline_factory(config)
-    #     test_dataset = dataset_class(test_data, test_indices)
-
-    #     test_loader = DataLoader(dataset=test_dataset,
-    #                              batch_size=config['batch_size'],
-    #                              shuffle=False,
-    #                              num_workers=config['num_workers'],
-    #                              pin_memory=True,
-    #                              collate_fn=lambda x: collate_fn(x, max_len=model.max_len))
-        
-    #     if config['extract_embeddings_only']:
-    #         embeddings_extractor = runner_class(model, test_loader, device, loss_module,
-    #                                         print_interval=config['print_interval'], console=config['console'])
-    #         with torch.no_grad():
-    #             embeddings = embeddings_extractor.extract_embeddings(keep_all=True)
-    #             embeddings_filepath = os.path.join(os.path.join(config["output_dir"] + "/embeddings.pt"))
-    #             torch.save(embeddings, embeddings_filepath)
-    #         return
-    #     else:
-    #         test_evaluator = runner_class(model, test_loader, device, loss_module,
-    #                                             print_interval=config['print_interval'], console=config['console'])
-    #         aggr_metrics_test, per_batch_test = test_evaluator.evaluate(keep_all=True)
-    #         print_str = 'Test Summary: '
-    #         for k, v in aggr_metrics_test.items():
-    #             print_str += '{}: {:8f} | '.format(k, v)
-    #         logger.info(print_str)
-    #         return
-
     # Initialize data generators
     dataset_class, collate_fn, runner_class = pipeline_factory(config)
+
+    # if config['eval_only']:
+        # test_dataset = dataset_class(test_data, test_indices)
+
+        # test_loader = DataLoader(dataset=test_dataset,
+        #                             batch_size=config['batch_size'],
+        #                             shuffle=False,
+        #                             num_workers=config['num_workers'],
+        #                             pin_memory=True,
+        #                             collate_fn=lambda x: collate_fn(x, max_len=model.max_len))
+        
+        # test_evaluator = runner_class(model, test_loader, device, loss_module,
+        #                                         print_interval=config['print_interval'], console=config['console'])
+        
+        # evaluate(test_evaluator, config, save_embeddings=True)
 
     val_dataset = dataset_class(val_data, val_indices)
     val_loader = DataLoader(dataset=val_dataset,
@@ -160,6 +144,7 @@ def main(config):
 
     trainer = runner_class(model, train_loader, device, loss_module, optimizer, l2_reg=config['l2_reg'],
                                  print_interval=config['print_interval'], console=config['console'])
+    
     val_evaluator = runner_class(model, val_loader, device, loss_module,
                                        print_interval=config['print_interval'], console=config['console'])
 

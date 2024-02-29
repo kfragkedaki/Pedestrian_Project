@@ -95,6 +95,12 @@ class Options(object):
         self.parser.add_argument("--max_grad_norm", type=float, default=4.0,
                                  help="Maximum L2 norm for gradient clipping, default 4.0 (0 to disable clipping)")
 
+        # Evaluation
+        self.parser.add_argument("--eval_only", action="store_true", 
+                                 help="Set this value to only evaluate model")
+        self.parser.add_argument('--save_embeddings', action='store_true',
+                                 help="Set this value to extract the embeddings when evaluating a model.")
+
         # Model
         self.parser.add_argument('--embedding_dim', type=int, default=64,
                                  help='Internal dimension of transformer embeddings')
@@ -113,10 +119,6 @@ class Options(object):
         self.parser.add_argument('--normalization_layer', choices={'BatchNorm', 'LayerNorm'}, default='BatchNorm',
                                  help='Normalization layer to be used internally in transformer encoder')
         
-        # # Evaluation
-        # parser.add_argument(
-        #     "--eval_only", action="store_true", help="Set this value to only evaluate model"
-        # )
 
     def parse(self):
 
@@ -124,20 +126,5 @@ class Options(object):
 
         if args.exclude_feats is not None:
             args.exclude_feats = [int(i) for i in args.exclude_feats.split(',')]
-
-        # opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
-        # path = os.path.dirname(os.path.abspath(__file__))
-        # opts.save_dir = os.path.join(
-        #     os.path.dirname(path),
-        #     opts.output_dir,
-        #     opts.run_name,
-        # )
-
-        # # Configure outputs dir
-        # os.makedirs(opts.save_dir)
-
-        # # Save arguments so exact configuration can always be found
-        # with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
-        #     json.dump(vars(opts), f, indent=True)
 
         return args

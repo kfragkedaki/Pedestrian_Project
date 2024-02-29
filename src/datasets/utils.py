@@ -5,49 +5,6 @@ https://github.com/ChangWeiTan/TSRegression/blob/master/utils
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from tqdm import tqdm
-
-regression_datasets = ["AustraliaRainfall",
-                       "HouseholdPowerConsumption1",
-                       "HouseholdPowerConsumption2",
-                       "BeijingPM25Quality",
-                       "BeijingPM10Quality",
-                       "Covid3Month",
-                       "LiveFuelMoistureContent",
-                       "FloodModeling1",
-                       "FloodModeling2",
-                       "FloodModeling3",
-                       "AppliancesEnergy",
-                       "BenzeneConcentration",
-                       "NewsHeadlineSentiment",
-                       "NewsTitleSentiment",
-                       "BIDMC32RR",
-                       "BIDMC32HR",
-                       "BIDMC32SpO2",
-                       "IEEEPPG",
-                       "PPGDalia"]
-
-
-def uniform_scaling(data, max_len):
-    """
-    This is a function to scale the time series uniformly
-    :param data:
-    :param max_len:
-    :return:
-    """
-    seq_len = len(data)
-    scaled_data = [data[int(j * seq_len / max_len)] for j in range(max_len)]
-
-    return scaled_data
-
-
-# The following code is adapted from the python package sktime to read .ts file.
-class TsFileParseException(Exception):
-    """
-    Should be raised when parsing a .ts file and the format is incorrect.
-    """
-    pass
 
 
 def load_from_tsfile_to_dataframe(full_file_path_and_name, return_separate_X_and_y=True,
@@ -558,48 +515,3 @@ def load_from_tsfile_to_dataframe(full_file_path_and_name, return_separate_X_and
             return data
     else:
         raise TsFileParseException("empty file")
-
-
-def process_data(X, min_len, normalise=None):
-    """
-    This is a function to process the data, i.e. convert dataframe to numpy array
-    :param X:
-    :param min_len:
-    :param normalise:
-    :return:
-    """
-    tmp = []
-    for i in tqdm(range(len(X))):
-        _x = X.iloc[i, :].copy(deep=True)
-
-        # 1. find the maximum length of each dimension
-        all_len = [len(y) for y in _x]
-        max_len = max(all_len)
-
-        # 2. adjust the length of each dimension
-        _y = []
-        for y in _x:
-            # 2.1 fill missing values
-            if y.isnull().any():
-                y = y.interpolate(method='linear', limit_direction='both')
-
-            # 2.2. if length of each dimension is different, uniformly scale the shorter ones to the max length
-            if len(y) < max_len:
-                y = uniform_scaling(y, max_len)
-            _y.append(y)
-        _y = np.array(np.transpose(_y))
-
-        # 3. adjust the length of the series, chop of the longer series
-        _y = _y[:min_len, :]
-
-        # 4. normalise the series
-        if normalise == "standard":
-            scaler = StandardScaler().fit(_y)
-            _y = scaler.transform(_y)
-        if normalise == "minmax":
-            scaler = MinMaxScaler().fit(_y)
-            _y = scaler.transform(_y)
-
-        tmp.append(_y)
-    X = np.array(tmp)
-    return X

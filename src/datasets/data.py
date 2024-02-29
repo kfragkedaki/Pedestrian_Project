@@ -91,8 +91,9 @@ class SINDData(BaseData):
             (Moreover, script argument overrides this attribute)
     """
 
-    def __init__(self, config: dict, n_proc=1):
+    def __init__(self, config: dict, n_proc=None):
 
+        n_proc = config['n_proc'] if n_proc is None else n_proc
         self.set_num_processes(n_proc=n_proc)
         self.config = config
 
