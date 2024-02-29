@@ -10,9 +10,8 @@ class ImputationDataset(Dataset):
                  mode='separate', distribution='geometric', exclude_feats=None):
         super(ImputationDataset, self).__init__()
 
-        self.data = data  # this is a subclass of the BaseData class in data.py
+        self.data = data  # dataframe of selected features and splitted samples (train or val)
         self.IDs = indices  # list of data IDs, but also mapping between integer index and ID
-        self.feature_df = self.data.feature_df.loc[self.IDs]
 
         self.masking_ratio = masking_ratio
         self.mean_mask_length = mean_mask_length
@@ -31,7 +30,7 @@ class ImputationDataset(Dataset):
             ID: ID of sample
         """
 
-        X = self.feature_df.loc[self.IDs[ind]].values  # (seq_length, feat_dim) array
+        X = self.data.loc[self.IDs[ind]].values  # (seq_length, feat_dim) array
         mask = noise_mask(X, self.masking_ratio, self.mean_mask_length, self.mode, self.distribution,
                           self.exclude_feats)  # (seq_length, feat_dim) boolean array
 
@@ -44,25 +43,8 @@ class ImputationDataset(Dataset):
     def __len__(self):
         return len(self.IDs)
     
-def compensate_masking(X, mask):
-    """
-    Compensate feature vectors after masking values, in a way that the matrix product W @ X would not be affected on average.
-    If p is the proportion of unmasked (active) elements, X' = X / p = X * feat_dim/num_active
-    Args:
-        X: (batch_size, seq_length, feat_dim) torch tensor
-        mask: (batch_size, seq_length, feat_dim) torch tensor: 0s means mask and predict, 1s: unaffected (active) input
-    Returns:
-        (batch_size, seq_length, feat_dim) compensated features
-    """
 
-    # number of unmasked elements of feature vector for each time step
-    num_active = torch.sum(mask, dim=-1).unsqueeze(-1)  # (batch_size, seq_length, 1)
-    # to avoid division by 0, set the minimum to 1
-    num_active = torch.max(num_active, torch.ones(num_active.shape, dtype=torch.int16))  # (batch_size, seq_length, 1)
-    return X.shape[-1] * X / num_active
-
-
-def collate_unsuperv(data, max_len=None, mask_compensation=False):
+def collate_unsuperv(data, max_len=None):
     """Build mini-batch tensors from a list of (X, mask) tuples. Mask input. Create
     Args:
         data: len(batch_size) list of tuples (X, mask).
@@ -86,8 +68,7 @@ def collate_unsuperv(data, max_len=None, mask_compensation=False):
     if max_len is None:
         max_len = max(lengths)
     X = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
-    target_masks = torch.zeros_like(X,
-                                    dtype=torch.bool)  # (batch_size, padded_length, feat_dim) masks related to objective
+    target_masks = torch.zeros_like(X, dtype=torch.bool)  # (batch_size, padded_length, feat_dim) masks related to objective
     for i in range(batch_size):
         end = min(lengths[i], max_len)
         X[i, :end, :] = features[i][:end, :]
@@ -95,11 +76,10 @@ def collate_unsuperv(data, max_len=None, mask_compensation=False):
 
     targets = X.clone()
     X = X * target_masks  # mask input
-    if mask_compensation:
-        X = compensate_masking(X, target_masks)
-
+    
     padding_masks = padding_mask(torch.tensor(lengths, dtype=torch.int16), max_len=max_len)  # (batch_size, padded_length) boolean tensor, "1" means keep
     target_masks = ~target_masks  # inverse logic: 0 now means ignore, 1 means predict
+    
     return X, targets, target_masks, padding_masks, IDs
 
 

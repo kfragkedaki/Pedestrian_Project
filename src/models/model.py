@@ -72,16 +72,17 @@ def setup(args):
 
     output_dir = os.path.join(output_dir, config['experiment_name'])
 
-    formatted_timestamp = initial_timestamp.strftime("%Y-%m-%d_%H-%M-%S")
-    config['initial_timestamp'] = formatted_timestamp
-    if (not config['no_timestamp']) or (len(config['experiment_name']) == 0):
+    # Create checkpoint, prediction and tensorboard directories
+    config['initial_timestamp'] = initial_timestamp.strftime("%Y-%m-%d_%H-%M-%S")
+
+    if len(config['experiment_name']) == 0:
         rand_suffix = "".join(random.choices(string.ascii_letters + string.digits, k=3))
-        output_dir += "_" + formatted_timestamp + "_" + rand_suffix
+        output_dir += "_" + config['initial_timestamp'] + "_" + rand_suffix
+
     config['output_dir'] = output_dir
     config['save_dir'] = os.path.join(output_dir, 'checkpoints')
-    config['pred_dir'] = os.path.join(output_dir, 'predictions')
     config['tensorboard_dir'] = os.path.join(output_dir, 'tb_summaries')
-    utils.create_dirs([config['save_dir'], config['pred_dir'], config['tensorboard_dir']])
+    utils.create_dirs([config['save_dir'], config['tensorboard_dir']])
 
     # Save configuration as a (pretty) json file
     with open(os.path.join(output_dir, 'configuration.json'), 'w') as fp:
@@ -92,89 +93,22 @@ def setup(args):
     return config
 
 
-def fold_evaluate(dataset, model, device, loss_module, target_feats, config, dataset_name):
+# def evaluate(evaluator):
+#     """Perform a single, one-off evaluation on an evaluator object (initialized with a dataset)"""
 
-    allfolds = {'target_feats': target_feats,  # list of len(num_folds), each element: list of target feature integer indices
-                'predictions': [],  # list of len(num_folds), each element: (num_samples, seq_len, feat_dim) prediction per sample
-                'targets': [],  # list of len(num_folds), each element: (num_samples, seq_len, feat_dim) target/original input per sample
-                'target_masks': [],  # list of len(num_folds), each element: (num_samples, seq_len, feat_dim) boolean mask per sample
-                'metrics': [],  # list of len(num_folds), each element: (num_samples, num_metrics) metric per sample
-                'IDs': []}  # list of len(num_folds), each element: (num_samples,) ID per sample
+#     eval_start_time = time.time()
+#     with torch.no_grad():
+#         aggr_metrics, per_batch = evaluator.evaluate(epoch_num=None, keep_all=True)
+#     eval_runtime = time.time() - eval_start_time
+#     print()
+#     print_str = 'Evaluation Summary: '
+#     for k, v in aggr_metrics.items():
+#         if v is not None:
+#             print_str += '{}: {:8f} | '.format(k, v)
+#     logger.info(print_str)
+#     logger.info("Evaluation runtime: {} hours, {} minutes, {} seconds\n".format(*utils.readable_time(eval_runtime)))
 
-    for i, tgt_feats in enumerate(target_feats):
-
-        dataset.mask_feats = tgt_feats  # set the transduction target features
-
-        loader = DataLoader(dataset=dataset,
-                            batch_size=config['batch_size'],
-                            shuffle=False,
-                            num_workers=config['num_workers'],
-                            pin_memory=True,
-                            collate_fn=lambda x: collate_unsuperv(x, max_len=config['max_seq_len']))
-
-        evaluator = UnsupervisedRunner(model, loader, device, loss_module,
-                                       print_interval=config['print_interval'], console=config['console'])
-
-        logger.info("Evaluating {} set, fold: {}, target features: {}".format(dataset_name, i, tgt_feats))
-        aggr_metrics, per_batch = evaluate(evaluator)
-
-        metrics_array = convert_metrics_per_batch_to_per_sample(per_batch['metrics'], per_batch['target_masks'])
-        metrics_array = np.concatenate(metrics_array, axis=0)
-        allfolds['metrics'].append(metrics_array)
-        allfolds['predictions'].append(np.concatenate(per_batch['predictions'], axis=0))
-        allfolds['targets'].append(np.concatenate(per_batch['targets'], axis=0))
-        allfolds['target_masks'].append(np.concatenate(per_batch['target_masks'], axis=0))
-        allfolds['IDs'].append(np.concatenate(per_batch['IDs'], axis=0))
-
-        metrics_mean = np.mean(metrics_array, axis=0)
-        metrics_std = np.std(metrics_array, axis=0)
-        for m, metric_name in enumerate(list(aggr_metrics.items())[1:]):
-            logger.info("{}:: Mean: {:.3f}, std: {:.3f}".format(metric_name, metrics_mean[m], metrics_std[m]))
-
-    pred_filepath = os.path.join(config['pred_dir'], dataset_name + '_fold_transduction_predictions.pickle')
-    logger.info("Serializing predictions into {} ... ".format(pred_filepath))
-    with open(pred_filepath, 'wb') as f:
-        pickle.dump(allfolds, f, pickle.HIGHEST_PROTOCOL)
-
-
-def convert_metrics_per_batch_to_per_sample(metrics, target_masks):
-    """
-    Args:
-        metrics: list of len(num_batches), each element: list of len(num_metrics), each element: (num_active_in_batch,) metric per element
-        target_masks: list of len(num_batches), each element: (batch_size, seq_len, feat_dim) boolean mask: 1s active, 0s ignore
-    Returns:
-        metrics_array = list of len(num_batches), each element: (batch_size, num_metrics) metric per sample
-    """
-    metrics_array = []
-    for b, batch_target_masks in enumerate(target_masks):
-        num_active_per_sample = np.sum(batch_target_masks, axis=(1, 2))
-        batch_metrics = np.stack(metrics[b], axis=1)  # (num_active_in_batch, num_metrics)
-        ind = 0
-        metrics_per_sample = np.zeros((len(num_active_per_sample), batch_metrics.shape[1]))  # (batch_size, num_metrics)
-        for n, num_active in enumerate(num_active_per_sample):
-            new_ind = ind + num_active
-            metrics_per_sample[n, :] = np.sum(batch_metrics[ind:new_ind, :], axis=0)
-            ind = new_ind
-        metrics_array.append(metrics_per_sample)
-    return metrics_array
-
-
-def evaluate(evaluator):
-    """Perform a single, one-off evaluation on an evaluator object (initialized with a dataset)"""
-
-    eval_start_time = time.time()
-    with torch.no_grad():
-        aggr_metrics, per_batch = evaluator.evaluate(epoch_num=None, keep_all=True)
-    eval_runtime = time.time() - eval_start_time
-    print()
-    print_str = 'Evaluation Summary: '
-    for k, v in aggr_metrics.items():
-        if v is not None:
-            print_str += '{}: {:8f} | '.format(k, v)
-    logger.info(print_str)
-    logger.info("Evaluation runtime: {} hours, {} minutes, {} seconds\n".format(*utils.readable_time(eval_runtime)))
-
-    return aggr_metrics, per_batch
+#     return aggr_metrics, per_batch
 
 
 def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value, epoch):
@@ -197,7 +131,6 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
     logger.info("Avg batch val. time: {} seconds".format(avg_val_batch_time))
     logger.info("Avg sample val. time: {} seconds".format(avg_val_sample_time))
 
-    print()
     print_str = 'Epoch {} Validation Summary: '.format(epoch)
     for k, v in aggr_metrics.items():
         tensorboard_writer.add_scalar('{}/val'.format(k), v, epoch)
@@ -208,14 +141,12 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
         condition = (aggr_metrics[config['key_metric']] < best_value)
     else:
         condition = (aggr_metrics[config['key_metric']] > best_value)
+
+    # Update Best Model
     if condition:
         best_value = aggr_metrics[config['key_metric']]
         utils.save_model(os.path.join(config['save_dir'], 'model_best.pth'), epoch, val_evaluator.model)
         best_metrics = aggr_metrics.copy()
-
-        pred_filepath = os.path.join(config['pred_dir'], 'best_predictions')
-        object_arrays = {key: np.array(value, dtype=object) for key, value in per_batch.items()}
-        np.savez(pred_filepath, **object_arrays)
 
     return aggr_metrics, best_metrics, best_value
 
@@ -266,7 +197,7 @@ class BaseRunner(object):
 
 class UnsupervisedRunner(BaseRunner):
 
-    def train_epoch(self, epoch_num=None):
+    def train_epoch(self, epoch_num=None, max_norm=1.0):
 
         self.model = self.model.train()
 
@@ -297,7 +228,7 @@ class UnsupervisedRunner(BaseRunner):
             total_loss.backward()
 
             # torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=4.0)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=max_norm)
             self.optimizer.step()
 
             metrics = {"loss": mean_loss.item()}
@@ -328,7 +259,7 @@ class UnsupervisedRunner(BaseRunner):
             X, targets, target_masks, padding_masks, IDs = batch
             targets = targets.to(self.device)
             target_masks = target_masks.to(self.device)  # 1s: mask and predict, 0s: unaffected input (ignore)
-            padding_masks = padding_masks.to(self.device)  # 0s: ignore
+            padding_masks = padding_masks.to(self.device)  # 0s: ignore (because they are padded)
 
             predictions, _ = self.model(X.to(self.device), padding_masks)  # (batch_size, padded_length, feat_dim)
 

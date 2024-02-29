@@ -12,6 +12,10 @@ class Options(object):
             description="Attention based model for Unsupservised Pretraining of Time Series Data."
         )
 
+        ## Run from config file
+        self.parser.add_argument('--config', dest='config_filepath',
+                                 help='Configuration .json file (optional). Overwrites existing command-line args!')
+
         ## Run from command-line arguments
         # I/O
         self.parser.add_argument('--output_dir', default='./experiments',
@@ -28,7 +32,6 @@ class Options(object):
                                  help='A string identifier/name for the experiment to be run - \
                                     it will be appended to the output directory name, before the timestamp')
         self.parser.add_argument('--comment', type=str, default='', help='A comment/description of the experiment')
-        self.parser.add_argument("--no_tensorboard", action="store_true", help="Disable logging TensorBoard files",)
 
         # System
         self.parser.add_argument('--console', action='store_true',
@@ -56,6 +59,8 @@ class Options(object):
                                  (size of transformer layers).""")
         
         # Training process
+        self.parser.add_argument('--task', choices={"imputation"}, default="imputation",
+                                 help=("Training objective/task: imputation of masked values"))
         self.parser.add_argument('--masking_ratio', type=float, default=0.15,
                                  help='Imputation: mask this proportion of each variable')
         self.parser.add_argument('--mean_mask_length', type=float, default=3,
@@ -86,7 +91,9 @@ class Options(object):
         self.parser.add_argument('--lr_decay', type=str, default='1.0', 
                                  help=("Learning rate decay per lr_step epochs") )       
         self.parser.add_argument('--optimizer', choices={"Adam", "RAdam", "NAdam", "Adamax"}, default="Adam", help="Optimizer")
-
+        self.parser.add_argument('--l2_reg', type=float, default=0, help='L2 weight regularization parameter. Set to 0 for no regularization.')
+        self.parser.add_argument("--max_grad_norm", type=float, default=4.0,
+                                 help="Maximum L2 norm for gradient clipping, default 4.0 (0 to disable clipping)")
 
         # Model
         self.parser.add_argument('--embedding_dim', type=int, default=64,
@@ -106,15 +113,6 @@ class Options(object):
         self.parser.add_argument('--normalization_layer', choices={'BatchNorm', 'LayerNorm'}, default='BatchNorm',
                                  help='Normalization layer to be used internally in transformer encoder')
         
-
-        # # Training
-        # parser.add_argument(
-        #     "--max_grad_norm",
-        #     type=float,
-        #     default=1.0,
-        #     help="Maximum L2 norm for gradient clipping, default 1.0 (0 to disable clipping)",
-        # )
-
         # # Evaluation
         # parser.add_argument(
         #     "--eval_only", action="store_true", help="Set this value to only evaluate model"
