@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from src.utils.poly_process import crosswalk_poly_for_label as cpfl
-from src.utils.map import SinD_map
+from datasets.map import SinD_map
 import torch
 
 """
@@ -23,7 +23,7 @@ dict =  {
 """
 
 CWD = os.getcwd()
-while CWD.rsplit('/', 1)[-1] != 'Pedestrian_Project':
+while CWD.rsplit("/", 1)[-1] != "Pedestrian_Project":
     CWD = os.path.dirname(CWD)
 
 ROOT = CWD + "/resources"
@@ -287,7 +287,7 @@ class SinD:
     #         _f = open(ROOT + "/sind_labels.pkl", "wb")
     #         pickle.dump(np.array(_labels), _f)
     #     return np.array(_labels)
-    
+
     def split_pedestrian_data(self, chunk_size=90, padding_value=1000):
         """
         Split pedestrian data into fixed-size chunks and convert to torch.Tensor,
@@ -302,15 +302,23 @@ class SinD:
 
         for _, attributes in self.pedestrian_data.items():
             # Stack 'x', 'y', 'vx', 'vy', 'ax', 'ay' vertically to get a 2D array for each
-            combined_data = np.stack([
-                attributes['x'], attributes['y'],
-                attributes['vx'], attributes['vy'],
-                attributes['ax'], attributes['ay']
-            ], axis=1)
+            combined_data = np.stack(
+                [
+                    attributes["x"],
+                    attributes["y"],
+                    attributes["vx"],
+                    attributes["vy"],
+                    attributes["ax"],
+                    attributes["ay"],
+                ],
+                axis=1,
+            )
 
             # Calculate the number of chunks and the number of items in the last chunk
-            total_length = len(attributes['x'])
-            num_chunks = (total_length + chunk_size - 1) // chunk_size  # Ceiling division
+            total_length = len(attributes["x"])
+            num_chunks = (
+                total_length + chunk_size - 1
+            ) // chunk_size  # Ceiling division
 
             for i in range(num_chunks):
                 start_index = i * chunk_size
@@ -322,13 +330,18 @@ class SinD:
                 # Padding if necessary
                 if chunk.shape[0] < chunk_size:
                     pad_length = chunk_size - chunk.shape[0]
-                    chunk = np.pad(chunk, ((0, pad_length), (0, 0)), mode='constant', constant_values=padding_value)
+                    chunk = np.pad(
+                        chunk,
+                        ((0, pad_length), (0, 0)),
+                        mode="constant",
+                        constant_values=padding_value,
+                    )
 
                 # Splitting combined data back into coords, velocity, and acceleration, and converting to tensors
                 split_data[idx] = {
-                    'coords': torch.tensor(chunk[:, :2], dtype=torch.float32),
-                    'velocity': torch.tensor(chunk[:, 2:4], dtype=torch.float32),
-                    'acceleration': torch.tensor(chunk[:, 4:], dtype=torch.float32)
+                    "coords": torch.tensor(chunk[:, :2], dtype=torch.float32),
+                    "velocity": torch.tensor(chunk[:, 2:4], dtype=torch.float32),
+                    "acceleration": torch.tensor(chunk[:, 4:], dtype=torch.float32),
                 }
 
                 idx += 1

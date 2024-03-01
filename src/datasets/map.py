@@ -9,10 +9,11 @@ import alphashape
 from descartes import PolygonPatch
 
 CWD = os.getcwd()
-while CWD.rsplit('/', 1)[-1] != 'Pedestrian_Project':
+while CWD.rsplit("/", 1)[-1] != "Pedestrian_Project":
     CWD = os.path.dirname(CWD)
 
 ROOT = CWD + "/resources/"
+
 
 class SinD_map:
     """Map class for the SinD dataset

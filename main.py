@@ -11,7 +11,9 @@ from src.agents import Agent
 
 ROOT = os.getcwd()
 
-logging.basicConfig(format='%(levelname)s: %(message)s', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(
+    format="%(levelname)s: %(message)s", encoding="utf-8", level=logging.DEBUG
+)
 warnings.filterwarnings("ignore")
 
 
@@ -26,7 +28,9 @@ def get_data(file_path, chunk_size, padding_value):
         logging.info("-------- Loading Dataset --------")
 
         sind = SinD()
-        data = sind.split_pedestrian_data(chunk_size=chunk_size, padding_value=padding_value)
+        data = sind.split_pedestrian_data(
+            chunk_size=chunk_size, padding_value=padding_value
+        )
         print(len(data))
     else:
         raise FileNotFoundError("No Dataset Available")
@@ -52,4 +56,3 @@ if __name__ == "__main__":
     data = get_data("resources/sind.pkl", chunk_size=90, padding_value=1000)
 
     run(get_options())
-    

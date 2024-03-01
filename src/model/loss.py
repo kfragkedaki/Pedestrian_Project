@@ -5,10 +5,10 @@ from torch.nn import functional as F
 
 def get_loss_module(config):
 
-    task = config['task']
+    task = config["task"]
 
-    if (task == "imputation"):
-        return MaskedMSELoss(reduction='none')  # outputs loss for each batch element
+    if task == "imputation":
+        return MaskedMSELoss(reduction="none")  # outputs loss for each batch element
     else:
         raise ValueError("Loss module for task '{}' does not exist".format(task))
 
@@ -17,23 +17,23 @@ def l2_reg_loss(model):
     """Returns the squared L2 norm of output layer of given model"""
 
     for name, param in model.named_parameters():
-        if name == 'output_layer.weight':
+        if name == "output_layer.weight":
             return torch.sum(torch.square(param))
 
 
 class MaskedMSELoss(nn.Module):
-    """ Masked MSE Loss
-    """
+    """Masked MSE Loss"""
 
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self, reduction: str = "mean"):
 
         super().__init__()
 
         self.reduction = reduction
         self.mse_loss = nn.MSELoss(reduction=self.reduction)
 
-    def forward(self,
-                y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.BoolTensor) -> torch.Tensor:
+    def forward(
+        self, y_pred: torch.Tensor, y_true: torch.Tensor, mask: torch.BoolTensor
+    ) -> torch.Tensor:
         """Compute the loss between a target value and a prediction.
 
         Args:

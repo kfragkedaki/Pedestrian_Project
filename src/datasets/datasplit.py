@@ -3,7 +3,14 @@ from sklearn import model_selection
 import os
 import json
 
-def split_dataset(data_indices, validation_ratio, n_splits=1, validation_method = "ShuffleSplit", random_seed=1337):
+
+def split_dataset(
+    data_indices,
+    validation_ratio,
+    n_splits=1,
+    validation_method="ShuffleSplit",
+    random_seed=1337,
+):
     """
     Splits dataset (i.e. the global datasets indices) into a test set and a training/validation set.
     The training/validation set is used to produce `n_splits` different configurations/splits of indices.
@@ -14,24 +21,39 @@ def split_dataset(data_indices, validation_ratio, n_splits=1, validation_method 
         val_indices: iterable of `n_splits` (num. of folds) numpy arrays,
             each array containing the global datasets indices corresponding to a fold's validation set
     """
-    datasplitter = DataSplitter.factory(validation_method, data_indices)  # DataSplitter object
+    datasplitter = DataSplitter.factory(
+        validation_method, data_indices
+    )  # DataSplitter object
 
     # Split train / validation sets -  returns a list of indices *per fold/split*
     datasplitter.split_validation(n_splits, validation_ratio, random_state=random_seed)
 
     return datasplitter.train_indices[0], datasplitter.val_indices[0]
 
-def save_indices(indices, folder, filename='data_indices.json'):
+
+def save_indices(indices, folder, filename="data_indices.json"):
     """
     Save train and validation indices to filename in folder
     """
-    with open(os.path.join(folder, filename), 'w') as f:
+    with open(os.path.join(folder, filename), "w") as f:
         try:
-            json.dump({'train_indices': list(map(int, indices['train'])),
-                       'val_indices': list(map(int, indices['val']))}, f, indent=4)
+            json.dump(
+                {
+                    "train_indices": list(map(int, indices["train"])),
+                    "val_indices": list(map(int, indices["val"])),
+                },
+                f,
+                indent=4,
+            )
         except ValueError:  # in case indices are non-integers
-            json.dump({'train_indices': list(indices['train']),
-                       'val_indices': list(indices['val'])}, f, indent=4)
+            json.dump(
+                {
+                    "train_indices": list(indices["train"]),
+                    "val_indices": list(indices["val"]),
+                },
+                f,
+                indent=4,
+            )
 
 
 class DataSplitter(object):
@@ -41,7 +63,9 @@ class DataSplitter(object):
         """data_indices = train_val_indices"""
 
         self.data_indices = data_indices  # global datasets indices
-        self.train_val_indices = np.copy(self.data_indices)  # global non-test indices (training and validation)
+        self.train_val_indices = np.copy(
+            self.data_indices
+        )  # global non-test indices (training and validation)
 
     @staticmethod
     def factory(split_type, *args, **kwargs):
@@ -93,11 +117,18 @@ class ShuffleSplitter(DataSplitter):
                 each array containing the global datasets indices corresponding to a fold's validation set
         """
 
-        splitter = model_selection.ShuffleSplit(n_splits=n_splits, test_size=validation_ratio,
-                                                random_state=random_state)
-        train_indices, val_indices = zip(*splitter.split(X=np.zeros(len(self.train_val_indices))))
+        splitter = model_selection.ShuffleSplit(
+            n_splits=n_splits, test_size=validation_ratio, random_state=random_state
+        )
+        train_indices, val_indices = zip(
+            *splitter.split(X=np.zeros(len(self.train_val_indices)))
+        )
         # return global datasets indices per fold
-        self.train_indices = [self.train_val_indices[fold_indices] for fold_indices in train_indices]
-        self.val_indices = [self.train_val_indices[fold_indices] for fold_indices in val_indices]
+        self.train_indices = [
+            self.train_val_indices[fold_indices] for fold_indices in train_indices
+        ]
+        self.val_indices = [
+            self.train_val_indices[fold_indices] for fold_indices in val_indices
+        ]
 
         return
