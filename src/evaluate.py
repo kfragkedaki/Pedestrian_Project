@@ -27,8 +27,8 @@ from model.model import setup, pipeline_factory, evaluate
 from utils import utils
 from datasets.data import data_factory, Normalizer
 from model.encoder import model_factory
-from model.loss import get_loss_module
-from model.optimizers import get_optimizer
+from utils.model_helpers import get_loss_module
+from utils.model_helpers import get_optimizer
 
 
 def main(config):
@@ -90,7 +90,7 @@ def main(config):
     loss_module = get_loss_module(config)
 
     # Initialize data generators
-    dataset_class, collate_fn, runner_class = pipeline_factory(config)
+    dataset_class, collate_fn, model_class = pipeline_factory(config)
     test_dataset = dataset_class(test_data, test_indices)
 
     test_loader = DataLoader(
@@ -102,7 +102,7 @@ def main(config):
         collate_fn=lambda x: collate_fn(x, max_len=model.max_len),
     )
 
-    test_evaluator = runner_class(
+    test_evaluator = model_class(
         model,
         test_loader,
         device,

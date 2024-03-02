@@ -1,17 +1,14 @@
-from typing import Optional
 import os
 from multiprocessing import Pool, cpu_count
 import glob
 import re
 import logging
-from itertools import repeat, chain
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from sktime.datasets import load_from_tsfile_to_dataframe
+import torch
+# from datasets.SINDDataset import SinD
 
-from datasets import utils
 
 logger = logging.getLogger("__main__")
 
@@ -101,14 +98,15 @@ class SINDData(BaseData):
         self.set_num_processes(n_proc=n_proc)
         self.config = config
 
-        self.all_df = self.load_all(config["data_dir"], pattern=config["pattern"])
-        self.all_df = self.all_df.sort_values(by=["timestamp"])  # datasets is presorted
-        self.all_df = self.all_df.set_index("timestamp")
-        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs
-        self.max_seq_len = 60
+        # Load and preprocess data
+        self.all_df = self.load_all(config["data_dir"], pattern=config["pattern"]) # 508644
+        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
 
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
-        self.feature_df = self.all_df[self.feature_names]
+
+        max_seq_len = self.all_df.groupby(by='track_id').size().max()
+        self.max_seq_len = config['data_chunk_len'] if config['data_chunk_len'] is not None else max_seq_len
+        self.tensor_3d = self.create_tensors(chunk_size=config['data_chunk_len'], padding_value=config['padding_value'])
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -120,7 +118,76 @@ class SINDData(BaseData):
             all_df: a single (possibly concatenated) dataframe with all data corresponding to specified files
         """
         # Select paths for training and evaluation
-        data_paths = glob.glob(os.path.join(root_dir, "*"))  # list of all paths
+        data_paths = self._gather_data_paths(root_dir, pattern)
+
+        if self.n_proc > 1:
+            # Load in parallel
+            _n_proc = min(
+                self.n_proc, len(data_paths)
+            )  # no more than file_names needed here
+            logger.info(
+                "Loading {} datasets files using {} parallel processes ...".format(
+                    len(data_paths), _n_proc
+                )
+            )
+            with Pool(processes=_n_proc) as pool:
+                all_df = pd.concat(pool.map(SINDData.load_single, data_paths))
+        else:  # read 1 file at a time
+            all_df = pd.concat(SINDData.load_single(path) for path in data_paths)
+
+        return all_df
+
+    @staticmethod
+    def load_single(filepath):
+        df = SINDData.read_data(filepath)
+        df = SINDData.select_columns(df)
+        num_nan = df.isna().sum().sum()
+        if num_nan > 0:
+            logger.warning(
+                "{} nan values in {} will be replaced by 1000".format(num_nan, filepath)
+            )
+            df = df.fillna(1000)  # NAN VALUES TO 1000
+
+        return df
+
+    @staticmethod
+    def read_data(filepath):
+        """Reads a single .csv, which typically contains a day of datasets of various machine sessions."""
+        file_name = os.path.basename(os.path.dirname(filepath))
+        df = pd.read_csv(filepath)
+        df['file_id'] = file_name
+
+        return df
+
+    @staticmethod
+    def select_columns(df):
+        """"""
+        keep_cols = [
+            "track_id",
+            "timestamp_ms",
+            "x",
+            "y",
+            "vx",
+            "vy",
+            "ax",
+            "ay"
+        ]
+        df_sorted = df.sort_values(by=['track_id', 'timestamp_ms'])
+        df_sorted['track_id'] = df_sorted['file_id'].astype(str) + '_' + df_sorted['track_id'].astype(str)
+        df_final = df_sorted[keep_cols].set_index('timestamp_ms')
+        # remove_stationary_data
+        df_final = df_final[df_final.groupby('track_id')[['vx', 'vy']].transform(any).all(axis=1)]
+
+        return df_final
+
+    def _gather_data_paths(self, root_dir, pattern):
+        # Implementation to gather data paths  based on a given pattern
+
+        data_paths = []  # list of all paths
+        for root, dirs, files in os.walk(root_dir):
+            for file in files:
+                data_paths.append(os.path.join(root, file))
+
         if len(data_paths) == 0:
             raise Exception(
                 "No files found using: {}".format(os.path.join(root_dir, "*"))
@@ -138,64 +205,21 @@ class SINDData(BaseData):
         if len(input_paths) == 0:
             raise Exception("No .csv files found using pattern: '{}'".format(pattern))
 
-        if self.n_proc > 1:
-            # Load in parallel
-            _n_proc = min(
-                self.n_proc, len(input_paths)
-            )  # no more than file_names needed here
-            logger.info(
-                "Loading {} datasets files using {} parallel processes ...".format(
-                    len(input_paths), _n_proc
-                )
-            )
-            with Pool(processes=_n_proc) as pool:
-                all_df = pd.concat(pool.map(SINDData.load_single, input_paths))
-        else:  # read 1 file at a time
-            all_df = pd.concat(SINDData.load_single(path) for path in input_paths)
+        return input_paths
 
-        return all_df
+    def create_tensors(self, chunk_size=90, padding_value=1000):
+        tensor_list = []
+        for _, group in self.all_df.groupby('track_id'):
+            # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
+            data = group[self.feature_names].to_numpy()
+            # Chunking and padding
+            chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+            padded_chunks = [
+                np.pad(chunk, ((0, max(0, chunk_size - len(chunk))), (0, 0)), 'constant', constant_values=padding_value) for
+                chunk in chunks]
+            tensor_list.extend([torch.tensor(chunk, dtype=torch.float32) for chunk in padded_chunks])
 
-    @staticmethod
-    def load_single(filepath):
-        df = SINDData.read_data(filepath)
-        df = SINDData.select_columns(df)
-        num_nan = df.isna().sum().sum()
-        if num_nan > 0:
-            logger.warning(
-                "{} nan values in {} will be replaced by 0".format(num_nan, filepath)
-            )
-            df = df.fillna(0)  # NAN VALUES TO 1000?
-
-        return df
-
-    @staticmethod
-    def read_data(filepath):
-        """Reads a single .csv, which typically contains a day of datasets of various machine sessions."""
-        df = pd.read_csv(filepath)
-        return df
-
-    @staticmethod
-    def select_columns(df):
-        """"""
-        df = df.rename(columns={"per_energy": "power"})
-        # Sometimes 'diff_time' is not measured correctly (is 0), and power ('per_energy') becomes infinite
-        is_error = df["power"] > 1e16
-        df.loc[is_error, "power"] = (
-            df.loc[is_error, "true_energy"] / df["diff_time"].median()
-        )
-
-        df["machine_record_index"] = df["machine_record_index"].astype(int)
-        keep_cols = [
-            "machine_record_index",
-            "wire_feed_speed",
-            "current",
-            "voltage",
-            "motor_current",
-            "power",
-        ]
-        df = df[keep_cols]
-
-        return df
-
+        # Stack all tensors to create a single 3D tensor
+        return torch.stack(tensor_list)
 
 data_factory = {"sind": SINDData}

@@ -1,103 +1,85 @@
 import logging
-import sys
 import os
-import traceback
-import json
-from datetime import datetime
-import string
-import random
-from collections import OrderedDict
 import time
-from functools import partial
+from collections import OrderedDict
 
 import torch
-from utils import utils
-from model.loss import l2_reg_loss
-from datasets.dataset import ImputationDataset, collate_unsuperv
+from src.utils.print_helpers import readable_time, Printer, count_parameters
+from src.utils.model_helpers import l2_reg_loss, save_model, load_model, NEG_METRICS, get_loss_module
 
 
 logger = logging.getLogger("__main__")
 
-NEG_METRICS = {"loss"}  # metrics for which "better" is less
-
 val_times = {"total_time": 0, "count": 0}
 
-
-def pipeline_factory(config):
+def load_task_model(config):
     """For the task specified in the configuration returns the corresponding combination of
-    Dataset class, collate function and Runner class."""
+    Model class."""
 
     task = config["task"]
 
     if task == "imputation":
         return (
-            partial(
-                ImputationDataset,
-                mean_mask_length=config["mean_mask_length"],
-                masking_ratio=config["masking_ratio"],
-                mode=config["mask_mode"],
-                distribution=config["mask_distribution"],
-                exclude_feats=config["exclude_feats"],
-            ),
-            collate_unsuperv,
-            UnsupervisedRunner,
+            UnsupervisedAttentionModel
         )
     else:
         raise NotImplementedError("Task '{}' not implemented".format(task))
 
 
-def setup(args):
-    """Prepare training session: read configuration from file (takes precedence), create directories.
-    Input:
-        args: arguments object from argparse
-    Returns:
-        config: configuration dictionary
-    """
+def create_model(train_loader, val_loader, config, logger, device):
+    """Create model from configuration"""
 
-    config = args.__dict__  # configuration dictionary
+    model_class = load_task_model(config)
+    model = model_class(config)
 
-    if args.config_filepath is not None:
-        logger.info("Reading configuration ...")
-        try:  # dictionary containing the entire configuration settings in a hierarchical fashion
-            config.update(utils.load_config(args.config_filepath))
-        except:
-            logger.critical(
-                "Failed to load configuration file. Check JSON syntax and verify that files exist"
-            )
-            traceback.print_exc()
-            sys.exit(1)
+    logger.info("Model:\n{}".format(model))
+    logger.info("Total number of parameters: {}".format(count_parameters(model)))
+    logger.info(
+        "Trainable parameters: {}".format(count_parameters(model, trainable=True))
+    )
 
-    # Create output directory
-    initial_timestamp = datetime.now()
-    output_dir = config["output_dir"]
-    if not os.path.isdir(output_dir):
-        raise IOError(
-            "Root directory '{}', where the directory of the experiment will be created, must exist".format(
-                output_dir
-            )
+    # Initialize optimizer
+    optim_class = get_optimizer(config["optimizer"])
+    optimizer = optim_class(model.parameters(), lr=config["lr"])
+
+    start_epoch = 0
+
+    # Load model and optimizer state
+    if config["load_model"]:
+        model, optimizer, start_epoch = load_model(
+            model,
+            config["load_model"],
+            optimizer,
+            config["resume"],
+            config["lr"],
+            config["lr_step"],
+            config["lr_decay"],
         )
+    model.to(device)
 
-    output_dir = os.path.join(output_dir, config["experiment_name"])
+    loss_module = get_loss_module(config)
 
-    # Create checkpoint, prediction and tensorboard directories
-    config["initial_timestamp"] = initial_timestamp.strftime("%Y-%m-%d_%H-%M-%S")
+    trainer = model_class(
+        model,
+        train_loader,
+        device,
+        loss_module,
+        optimizer,
+        l2_reg=config["l2_reg"],
+        print_interval=config["print_interval"],
+        console=config["console"],
+    )
 
-    if len(config["experiment_name"]) == 0:
-        rand_suffix = "".join(random.choices(string.ascii_letters + string.digits, k=3))
-        output_dir += "_" + config["initial_timestamp"] + "_" + rand_suffix
+    val_evaluator = model_class(
+        model,
+        val_loader,
+        device,
+        loss_module,
+        print_interval=config["print_interval"],
+        console=config["console"],
+    )
 
-    config["output_dir"] = output_dir
-    config["save_dir"] = os.path.join(output_dir, "checkpoints")
-    config["tensorboard_dir"] = os.path.join(output_dir, "tb_summaries")
-    utils.create_dirs([config["save_dir"], config["tensorboard_dir"]])
-
-    # Save configuration as a (pretty) json file
-    with open(os.path.join(output_dir, "configuration.json"), "w") as fp:
-        json.dump(config, fp, indent=4, sort_keys=True)
-
-    logger.info("Stored configuration file in '{}'".format(output_dir))
-
-    return config
+    return trainer, val_evaluator, start_epoch
 
 
 def evaluate(evaluator, config=None, save_embeddings=True):
@@ -123,7 +105,7 @@ def evaluate(evaluator, config=None, save_embeddings=True):
     logger.info(print_str)
     logger.info(
         "Evaluation runtime: {} hours, {} minutes, {} seconds\n".format(
-            *utils.readable_time(eval_runtime)
+            *readable_time(eval_runtime)
         )
     )
 
@@ -142,7 +124,7 @@ def validate(
     eval_runtime = time.time() - eval_start_time
     logger.info(
         "Validation runtime: {} hours, {} minutes, {} seconds\n".format(
-            *utils.readable_time(eval_runtime)
+            *readable_time(eval_runtime)
         )
     )
 
@@ -154,7 +136,7 @@ def validate(
     avg_val_sample_time = avg_val_time / len(val_evaluator.dataloader.dataset)
     logger.info(
         "Avg val. time: {} hours, {} minutes, {} seconds".format(
-            *utils.readable_time(avg_val_time)
+            *readable_time(avg_val_time)
         )
     )
     logger.info("Avg batch val. time: {} seconds".format(avg_val_batch_time))
@@ -174,29 +156,21 @@ def validate(
     # Update Best Model
     if condition:
         best_value = aggr_metrics[config["key_metric"]]
-        utils.save_model(
+        save_model(
             os.path.join(config["save_dir"], "model_best.pth"),
             epoch,
-            val_evaluator.model,
+            val_evaluator.encoder,
         )
         best_metrics = aggr_metrics.copy()
 
     return aggr_metrics, best_metrics, best_value
 
 
-def check_progress(epoch):
-
-    if epoch in [100, 140, 160, 220, 280, 340]:
-        return True
-    else:
-        return False
-
-
-class BaseRunner(object):
+class BaseModel(object):
 
     def __init__(
         self,
-        model,
+        encoder,
         dataloader,
         device,
         loss_module,
@@ -206,14 +180,14 @@ class BaseRunner(object):
         console=True,
     ):
 
-        self.model = model
+        self.encoder = encoder
         self.dataloader = dataloader
         self.device = device
         self.optimizer = optimizer
         self.loss_module = loss_module
         self.l2_reg = l2_reg
         self.print_interval = print_interval
-        self.printer = utils.Printer(console=console)
+        self.printer = Printer(console=console)
 
         self.epoch_metrics = OrderedDict()
 
@@ -238,11 +212,11 @@ class BaseRunner(object):
         self.printer.print(dyn_string)
 
 
-class UnsupervisedRunner(BaseRunner):
+class UnsupervisedAttentionModel(BaseModel):
 
     def train_epoch(self, epoch_num=None, max_norm=1.0):
 
-        self.model = self.model.train()
+        self.encoder = self.encoder.train()
 
         epoch_loss = 0  # total loss of epoch
         total_active_elements = 0  # total unmasked elements in epoch
@@ -255,7 +229,7 @@ class UnsupervisedRunner(BaseRunner):
             )  # 1s: mask and predict, 0s: unaffected input (ignore)
             padding_masks = padding_masks.to(self.device)  # 0s: ignore
 
-            predictions, _ = self.model(
+            predictions, _ = self.encoder(
                 X.to(self.device), padding_masks
             )  # (batch_size, padded_length, feat_dim)
 
@@ -270,7 +244,7 @@ class UnsupervisedRunner(BaseRunner):
             )  # mean loss (over active elements) used for optimization
 
             if self.l2_reg:
-                total_loss = mean_loss + self.l2_reg * l2_reg_loss(self.model)
+                total_loss = mean_loss + self.l2_reg * l2_reg_loss(self.encoder)
             else:
                 total_loss = mean_loss
 
@@ -278,8 +252,8 @@ class UnsupervisedRunner(BaseRunner):
             self.optimizer.zero_grad()
             total_loss.backward()
 
-            # torch.nn.utils.clip_grad_value_(self.model.parameters(), clip_value=1.0)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=max_norm)
+            # torch.nn.utils.clip_grad_value_(self.encoder.parameters(), clip_value=1.0)
+            torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), max_norm=max_norm)
             self.optimizer.step()
 
             metrics = {"loss": mean_loss.item()}
@@ -300,7 +274,7 @@ class UnsupervisedRunner(BaseRunner):
 
     def evaluate(self, epoch_num=None, keep_all=True, save_embeddings=False):
 
-        self.model = self.model.eval()
+        self.encoder = self.encoder.eval()
 
         epoch_loss = 0  # total loss of epoch
         total_active_elements = 0  # total unmasked elements in epoch
@@ -327,7 +301,7 @@ class UnsupervisedRunner(BaseRunner):
                 self.device
             )  # 0s: ignore (because they are padded)
 
-            predictions, embedding = self.model(
+            predictions, embedding = self.encoder(
                 X.to(self.device), padding_masks
             )  # (batch_size, padded_length, feat_dim)
 

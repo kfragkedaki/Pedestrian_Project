@@ -1,9 +1,4 @@
-import os
-import csv
-import json
-import time
 import argparse
-import torch
 
 
 class Options(object):
@@ -68,6 +63,8 @@ class Options(object):
             help="Print batch info every this many batches",
         )
         self.parser.add_argument("--no_cuda", action="store_true", help="Disable CUDA")
+        self.parser.add_argument('--n_proc', type=int, default=-1,
+                                 help='Number of processes for data loading/preprocessing. By default, equals num. of available cores.')
         self.parser.add_argument(
             "--num_workers",
             type=int,
@@ -83,7 +80,7 @@ class Options(object):
         self.parser.add_argument(
             "--data_class",
             type=str,
-            default="weld",
+            default="sind",
             help="Which type of data should be processed.",
         )
         self.parser.add_argument(
@@ -115,6 +112,12 @@ class Options(object):
             default=60,
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
                                  (size of transformer layers).""",
+        )
+        self.parser.add_argument(
+            "--padding_value",
+            type=int,
+            default=1000,
+            help="""Determines the padded value of the data.""",
         )
 
         # Training process
@@ -198,8 +201,8 @@ class Options(object):
         )
         self.parser.add_argument(
             "--optimizer",
-            choices={"Adam", "RAdam", "NAdam", "Adamax"},
-            default="Adam",
+            choices={"Adam", "RAdam"}, # "NAdam", "Adamax"
+            default="RAdam",
             help="Optimizer",
         )
         self.parser.add_argument(
@@ -231,7 +234,7 @@ class Options(object):
         self.parser.add_argument(
             "--embedding_dim",
             type=int,
-            default=64,
+            default=128,
             help="Internal dimension of transformer embeddings",
         )
         self.parser.add_argument(
@@ -283,5 +286,11 @@ class Options(object):
 
         if args.exclude_feats is not None:
             args.exclude_feats = [int(i) for i in args.exclude_feats.split(",")]
+
+         # If evaluating, no validation set is used
+        if args.eval_only:
+            args.val_ratio = 0.0
+        elif not args.eval_only and args.val_ratio == 0.0: 
+            raise ValueError("Validation ratio cannot be 0.0 when training the model")
 
         return args

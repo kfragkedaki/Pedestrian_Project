@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional
 import math
 
 import torch
@@ -16,13 +16,7 @@ from torch.nn.modules import (
 def model_factory(config, data):
     task = config["task"]
     feat_dim = data.feature_df.shape[1]  # dimensionality of data features
-
-    if max_seq_len is None:
-        try:
-            max_seq_len = data.max_seq_len
-        except AttributeError as x:
-            print("Data class does not define a maximum sequence length")
-            raise x
+    max_seq_len = data.max_seq_len
 
     if task == "imputation":
         return TSTransformerEncoder(
