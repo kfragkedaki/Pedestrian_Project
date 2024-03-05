@@ -72,7 +72,7 @@ class Options(object):
             help="dataloader threads. 0 for single-thread.",
         )
         self.parser.add_argument(
-            "--seed",
+            "--seed", type=int, default=1337,
             help="Random seed to use. None by default, set to an integer for reproducibility",
         )
 
@@ -289,7 +289,8 @@ class Options(object):
 
          # If evaluating, no validation set is used
         if args.eval_only:
-            args.val_ratio = 0.0
+            args.val_ratio = 1.0
+            args.save_embeddings = True
         elif not args.eval_only and args.val_ratio == 0.0: 
             raise ValueError("Validation ratio cannot be 0.0 when training the model")
 

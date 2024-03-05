@@ -28,16 +28,23 @@ def load_task_datasets(config):
 
 
 def load_data(config, logger):
+    """ Load data, and split train and test dataset. If eval_only then only val_dataset will be created."""
     logger.info("Loading and preprocessing data ...")
     data_class = data_factory[config["data_class"]]
     my_data = data_class(config, n_proc=config["n_proc"])
+    # my_data.tensor_3d.shape[0], (my_data.all_df.groupby(by='track_id').size()/60).sum() # TODO CHECK TENSOR
 
     # Split dataset
-    train_indices, val_indices = split_dataset(
-        data_indices=my_data.all_IDs,
-        validation_ratio=config["val_ratio"],
-        random_seed=config["seed"],
-    )
+    if config["val_ratio"] == 1:
+        val_indices = my_data.all_IDs
+        train_indices = []
+        logger.info("{} samples may be used for evaluation".format(len(val_indices)))
+    else:
+        train_indices, val_indices = split_dataset(
+            data_indices=my_data.all_IDs,
+            validation_ratio=config["val_ratio"],
+            random_seed=config["seed"],
+        )
 
     logger.info("{} samples may be used for training".format(len(train_indices)))
     logger.info("{} samples will be used for validation".format(len(val_indices)))
@@ -49,8 +56,8 @@ def load_data(config, logger):
     val_data = my_data.feature_df.loc[val_indices]
 
     # Pre-process features
-    if config["normalization"] is not None:
-        normalizer = Normalizer(config["normalization"])
+    if config["data_normalization"] is not None:
+        normalizer = Normalizer(config["data_normalization"])
         train_data = normalizer.normalize(train_data)
         if len(val_indices):
             val_data = normalizer.normalize(val_data)
@@ -66,17 +73,19 @@ def load_data(config, logger):
         shuffle=False,
         num_workers=config["num_workers"],
         pin_memory=True,
-        collate_fn=lambda x: collate_fn(x, max_len=train_data.max_seq_len),
+        collate_fn=lambda x: collate_fn(x, max_len=my_data.max_seq_len),
     )
 
-    train_dataset = task_dataset_class(train_data, train_indices)
-    train_loader = DataLoader(
-        dataset=train_dataset,
-        batch_size=config["batch_size"],
-        shuffle=True,
-        num_workers=config["num_workers"],
-        pin_memory=True,
-        collate_fn=lambda x: collate_fn(x, max_len=train_data.max_seq_len),
-    )
+    train_loader = None
+    if config["val_ratio"] < 1:
+        train_dataset = task_dataset_class(train_data, train_indices)
+        train_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=config["batch_size"],
+            shuffle=True,
+            num_workers=config["num_workers"],
+            pin_memory=True,
+            collate_fn=lambda x: collate_fn(x, max_len=my_data.max_seq_len),
+        )
 
-    return train_loader, val_loader
+    return train_loader, val_loader, my_data

@@ -6,8 +6,6 @@ import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 
 
-NEG_METRICS = {"loss"}  # metrics for which "better" is less
-
 def check_progress(epoch):
 
     if epoch in [100, 140, 160, 220, 280, 340]:

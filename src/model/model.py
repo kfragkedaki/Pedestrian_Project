@@ -5,8 +5,8 @@ from collections import OrderedDict
 
 import torch
 from src.utils.print_helpers import readable_time, Printer, count_parameters
-from src.utils.model_helpers import l2_reg_loss, save_model, load_model, NEG_METRICS, get_loss_module
-
+from src.utils.model_helpers import l2_reg_loss, save_model, load_model, get_loss_module, get_optimizer
+from src.model.encoder import model_factory
 
 logger = logging.getLogger("__main__")
 
@@ -26,11 +26,11 @@ def load_task_model(config):
         raise NotImplementedError("Task '{}' not implemented".format(task))
 
 
-def create_model(train_loader, val_loader, config, logger, device):
+def create_model(config, train_loader, val_loader, data, logger, device):
     """Create model from configuration"""
 
     model_class = load_task_model(config)
-    model = model_class(config)
+    model = model_factory(config, data)
 
     logger.info("Model:\n{}".format(model))
     logger.info("Total number of parameters: {}".format(count_parameters(model)))
@@ -148,14 +148,10 @@ def validate(
         print_str += "{}: {:8f} | ".format(k, v)
     logger.info(print_str)
 
-    if config["key_metric"] in NEG_METRICS:
-        condition = aggr_metrics[config["key_metric"]] < best_value
-    else:
-        condition = aggr_metrics[config["key_metric"]] > best_value
-
+    key_metric = 'loss'
     # Update Best Model
-    if condition:
-        best_value = aggr_metrics[config["key_metric"]]
+    if aggr_metrics[key_metric] < best_value:
+        best_value = aggr_metrics[config[key_metric]]
         save_model(
             os.path.join(config["save_dir"], "model_best.pth"),
             epoch,
