@@ -11,7 +11,7 @@ import logging
 # from src.agents import Agent
 from src.options import Options
 from src.utils import setup, load_data
-from src.model.model import create_model
+from src.model.model import create_model, evaluate
 
 
 ROOT = os.getcwd()
@@ -64,29 +64,19 @@ def run(config):
 
     ## Build and split data
     # data = get_data("resources/sind.pkl", chunk_size=90, padding_value=1000)
-    train_loader, val_loader = load_data(config, logger)
+    train_loader, val_loader, data = load_data(config, logger)
 
     # Create model
-    trainer, val_evaluator, start_epoch = create_model(config, train_loader, val_loader, logger, device)
+    trainer, val_evaluator, start_epoch = create_model(config, train_loader, val_loader, data, logger, device)
     best_metrics = {}
 
     if config["eval_only"]:
         logger.info("Evaluating model ...")
-        best_metrics = val_evaluator.evaluate(start_epoch, best_metrics)
+        evaluate(val_evaluator, config, save_embeddings=config['save_embeddings'])
     else:
         max_norm = config["max_grad_norm"] if config["max_grad_norm"] > 0 else math.inf
         lr = config["lr"]  # current learning step - when using lr_decay < 1, it changes
-        best_value = (
-                1e16 if config["key_metric"] in NEG_METRICS else -1e16
-            )  # initialize with +inf or -inf depending on key metric
-
-        
-    # # Initialize the Environment
-    # env = load_env()
-
-    # # Train the Agent
-    # agent = Agent(opts, env)
-    # agent.train()
+        best_value =  1e16  # initialize with +inf due to minimizing of metric (loss)
 
 
 if __name__ == "__main__":
