@@ -100,13 +100,26 @@ class SINDData(BaseData):
 
         # Load and preprocess data
         self.all_df = self.load_all(config["data_dir"], pattern=config["pattern"]) # 508644
+
+        max_seq_len = self.all_df.groupby(by='track_id').size().max() # 11726 8_7_1_P1
+        self.max_seq_len = config['data_chunk_len'] if config['data_chunk_len'] is not None else max_seq_len
+
+        # if config['data_chunk_len'] is not None:
+        #     IDs = [i // self.max_seq_len for i in range(self.all_df.shape[0])]
+        # else:
+        #     IDs = self.all_df.index
+
+        # IDs in case data_chunk is not None
+        # self.all_df.insert(loc=0, column='data_id', value=IDs)
+        self.all_df['unique_int_id'], _ = pd.factorize(self.all_df['track_id'])
+        self.all_df = self.all_df.set_index('unique_int_id')
         self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
 
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
+        self.feature_df = self.all_df[self.feature_names]
 
-        max_seq_len = self.all_df.groupby(by='track_id').size().max()
-        self.max_seq_len = config['data_chunk_len'] if config['data_chunk_len'] is not None else max_seq_len
-        self.tensor_3d = self.create_tensors(chunk_size=config['data_chunk_len'], padding_value=config['padding_value'])
+        self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len, padding_value=config['padding_value'])
+
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -140,7 +153,7 @@ class SINDData(BaseData):
     @staticmethod
     def load_single(filepath):
         df = SINDData.read_data(filepath)
-        df = SINDData.select_columns(df)
+        df = SINDData.sort_clean_data(df)
         num_nan = df.isna().sum().sum()
         if num_nan > 0:
             logger.warning(
@@ -160,7 +173,7 @@ class SINDData(BaseData):
         return df
 
     @staticmethod
-    def select_columns(df):
+    def sort_clean_data(df):
         """"""
         keep_cols = [
             "track_id",
@@ -172,9 +185,16 @@ class SINDData(BaseData):
             "ax",
             "ay"
         ]
+
+        # sort based on time and id
         df_sorted = df.sort_values(by=['track_id', 'timestamp_ms'])
+
+        # make track id unique among different files
         df_sorted['track_id'] = df_sorted['file_id'].astype(str) + '_' + df_sorted['track_id'].astype(str)
-        df_final = df_sorted[keep_cols].set_index('timestamp_ms')
+
+        # keep columns
+        df_final = df_sorted[keep_cols]
+
         # remove_stationary_data
         df_final = df_final[df_final.groupby('track_id')[['vx', 'vy']].transform(any).all(axis=1)]
 
@@ -207,7 +227,7 @@ class SINDData(BaseData):
 
         return input_paths
 
-    def create_tensors(self, chunk_size=90, padding_value=1000):
+    def create_tensors(self, chunk_size, padding_value=0):
         tensor_list = []
         for _, group in self.all_df.groupby('track_id'):
             # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
