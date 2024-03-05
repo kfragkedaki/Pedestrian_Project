@@ -83,7 +83,7 @@ class FixedPositionalEncoding(nn.Module):
         )  # (embedding_dim/2,)
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = scale_factor * pe.unsqueeze(0).transpose(0, 1)  # (max_len, 1, embedding_dim)
+        pe = scale_factor * pe.unsqueeze(1).transpose(0, 1)  # (1, max_len, embedding_dim)
         self.register_buffer(
             "pe", pe
         )  # this stores the variable in the state_dict (used for non-trainable variables)
@@ -97,7 +97,7 @@ class FixedPositionalEncoding(nn.Module):
             output: [sequence length, batch size, embed dim]
         """
 
-        x = x + self.pe[: x.size(0), :]
+        x = x + self.pe[:, :x.size(0), :]
         return self.dropout(x)
 
 
@@ -143,7 +143,7 @@ class TransformerBatchNormEncoderLayer(nn.modules.Module):
         self, embedding_dim, nhead, hidden_dim=2048, dropout=0.1, activation="relu"
     ):
         super(TransformerBatchNormEncoderLayer, self).__init__()
-        self.self_attn = MultiheadAttention(embedding_dim, nhead, dropout=dropout)
+        self.self_attn = MultiheadAttention(embedding_dim, nhead, dropout=dropout, batch_first=True)
         # Implementation of Feedforward model
         self.linear1 = Linear(embedding_dim, hidden_dim)
         self.dropout = Dropout(dropout)
@@ -180,19 +180,26 @@ class TransformerBatchNormEncoderLayer(nn.modules.Module):
         Shape:
             see the docs in Transformer class.
         """
+
+        #  Transformer Model and Residual connection
         src2 = self.self_attn(
             src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
-        )[0]
-        src = src + self.dropout1(src2)  # (seq_len, batch_size, embedding_dim)
-        src = src.permute(1, 2, 0)  # (batch_size, embedding_dim, seq_len)
-        # src = src.reshape([src.shape[0], -1])  # (batch_size, seq_length * embedding_dim)
+        )[0] # attn_output, attn_output_weights
+        src = src + self.dropout1(src2)  # (batch_size, seq_len, embedding_dim)
+
+        # Normalization
+        src = src.permute(0, 2, 1)  # (batch_size, embedding_dim, seq_len)
         src = self.norm1(src)
-        src = src.permute(2, 0, 1)  # restore (seq_len, batch_size, embedding_dim)
+        src = src.permute(0, 2, 1)  # restore (batch_size, seq_len, embedding_dim)
+
+        # Feed Forward Layer and Residual connection
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        src = src + self.dropout2(src2)  # (seq_len, batch_size, embedding_dim)
-        src = src.permute(1, 2, 0)  # (batch_size, embedding_dim, seq_len)
+        src = src + self.dropout2(src2)  # (batch_size, seq_len, embedding_dim)
+
+        # Normalization
+        src = src.permute(0, 2, 1)  # (batch_size, embedding_dim, seq_len)
         src = self.norm2(src)
-        src = src.permute(2, 0, 1)  # restore (seq_len, batch_size, embedding_dim)
+        src = src.permute(0, 2, 1)  # restore (batch_size, seq_len, embedding_dim)
         return src
 
 
@@ -241,13 +248,9 @@ class TSTransformerEncoder(nn.Module):
             )
 
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers)
-
-        self.output_layer = nn.Linear(embedding_dim, feat_dim)
-
         self.act = _get_activation_fn(activation)
-
         self.dropout1 = nn.Dropout(dropout)
-
+        self.output_layer = nn.Linear(embedding_dim, feat_dim)
         self.feat_dim = feat_dim
 
     def forward(self, X, padding_masks):
@@ -260,22 +263,21 @@ class TSTransformerEncoder(nn.Module):
         """
 
         # permute because pytorch convention for transformers is [seq_length, batch_size, feat_dim]. padding_masks [batch_size, feat_dim]
-        inp = X.permute(1, 0, 2)
-        inp = self.project_inp(inp) * math.sqrt(
+        inp = self.project_inp(X) * math.sqrt(
             self.embedding_dim
-        )  # [seq_length, batch_size, embedding_dim] project input vectors to embedding_dim dimensional space
+        )  # [batch_size, seq_length, embedding_dim] project input vectors to embedding_dim dimensional space
         inp = self.pos_enc(inp)  # add positional encoding
         # NOTE: logic for padding masks is reversed to comply with definition in MultiHeadAttention, TransformerEncoderLayer
         output = self.transformer_encoder(
             inp, src_key_padding_mask=~padding_masks
-        )  # (seq_length, batch_size, embedding_dim)
+        )  # (batch_size, seq_len, embedding_dim)
         output = self.act(
             output
         )  # the output transformer encoder/decoder embeddings don't include non-linearity
         embedding = output
 
-        output = output.permute(1, 0, 2)  # (batch_size, seq_length, embedding_dim)
-        output = self.dropout1(output)
+        output = self.dropout1(output) # (batch_size, seq_length, embedding_dim)
+
         # Most probably defining a Linear(embedding_dim,feat_dim) vectorizes the operation over (seq_length, batch_size).
         output = self.output_layer(output)  # (batch_size, seq_length, feat_dim)
 
