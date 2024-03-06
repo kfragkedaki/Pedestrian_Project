@@ -1,4 +1,4 @@
-from datasets.SINDDataset import SinD
+from example_code.data.SINDDataset import SinD
 from shapely.geometry import Point, LineString
 import numpy as np
 import pandas as pd
