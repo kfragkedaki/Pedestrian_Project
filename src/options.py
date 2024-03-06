@@ -49,6 +49,8 @@ class Options(object):
             default="",
             help="A comment/description of the experiment",
         )
+        self.parser.add_argument('--records_file', default='./records.xls',
+                                 help='Excel file keeping all records of experiments')
 
         # System
         self.parser.add_argument(
@@ -188,15 +190,15 @@ class Options(object):
         self.parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
         self.parser.add_argument(
             "--lr_step",
-            type=str,
-            default="1",
+            type=int,
+            default=1,
             help="Reduce learning rate by a factor of lr_decay every lr_step steps."
             " The default is 1, meaning that the learning rate will decay every epoch.",
         )
         self.parser.add_argument(
             "--lr_decay",
-            type=str,
-            default="1.0",
+            type=float,
+            default=1.0,
             help=("Learning rate decay per lr_step epochs"),
         )
         self.parser.add_argument(
