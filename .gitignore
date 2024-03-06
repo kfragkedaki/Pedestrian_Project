@@ -140,5 +140,6 @@ weights*
 resources*
 data_generated*
 experiments*
+*.png
 
 .idea*

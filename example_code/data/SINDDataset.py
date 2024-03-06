@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from datasets.map import SinD_map
+from .map import SinD_map
 
 
 """
