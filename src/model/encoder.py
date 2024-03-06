@@ -96,8 +96,7 @@ class FixedPositionalEncoding(nn.Module):
             x: [sequence length, batch size, embed dim]
             output: [sequence length, batch size, embed dim]
         """
-
-        x = x + self.pe[:, :x.size(0), :]
+        x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
 
@@ -109,7 +108,7 @@ class LearnablePositionalEncoding(nn.Module):
         # Each position gets its own embedding
         # Since indices are always 0 ... max_len, we don't have to do a look-up
         self.pe = nn.Parameter(
-            torch.empty(max_len, 1, embedding_dim)
+            torch.empty( 1, max_len, embedding_dim)  # (1, max_len, embedding_dim)
         )  # requires_grad automatically set to True
         nn.init.uniform_(self.pe, -0.02, 0.02)
 
@@ -122,7 +121,7 @@ class LearnablePositionalEncoding(nn.Module):
             output: [sequence length, batch size, embed dim]
         """
 
-        x = x + self.pe[: x.size(0), :]
+        x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
 

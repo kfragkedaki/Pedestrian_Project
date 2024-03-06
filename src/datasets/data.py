@@ -104,21 +104,21 @@ class SINDData(BaseData):
         max_seq_len = self.all_df.groupby(by='track_id').size().max() # 11726 8_7_1_P1
         self.max_seq_len = config['data_chunk_len'] if config['data_chunk_len'] is not None else max_seq_len
 
-        # if config['data_chunk_len'] is not None:
-        #     IDs = [i // self.max_seq_len for i in range(self.all_df.shape[0])]
-        # else:
-        #     IDs = self.all_df.index
+        if config['data_chunk_len'] is not None:
+            self.all_df = self.assign_chunk_idx(self.all_df, config['data_chunk_len'])
+            # Remove chunks with less than 2 points
+            self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
+        else:
+            self.all_df['data_chunk_len'] = self.all_df['unique_int_id']
 
-        # IDs in case data_chunk is not None
-        # self.all_df.insert(loc=0, column='data_id', value=IDs)
         self.all_df['unique_int_id'], _ = pd.factorize(self.all_df['track_id'])
-        self.all_df = self.all_df.set_index('unique_int_id')
+        self.all_df = self.all_df.set_index('data_chunk_len')
         self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
 
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
         self.feature_df = self.all_df[self.feature_names]
 
-        self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len, padding_value=config['padding_value'])
+        # self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len, padding_value=config['padding_value'])
 
 
     def load_all(self, root_dir, pattern=None):
@@ -227,19 +227,49 @@ class SINDData(BaseData):
 
         return input_paths
 
-    def create_tensors(self, chunk_size, padding_value=0):
-        tensor_list = []
-        for _, group in self.all_df.groupby('track_id'):
-            # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
-            data = group[self.feature_names].to_numpy()
-            # Chunking and padding
-            chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
-            padded_chunks = [
-                np.pad(chunk, ((0, max(0, chunk_size - len(chunk))), (0, 0)), 'constant', constant_values=padding_value) for
-                chunk in chunks]
-            tensor_list.extend([torch.tensor(chunk, dtype=torch.float32) for chunk in padded_chunks])
+    @staticmethod
+    def assign_chunk_idx(df, chunk_len):
+        """Assigns a chunk index to each row and trajectory."""
+        # Calculate local chunk indices within each unique trajectory
+        df['chunk_idx'] = df.groupby('track_id').cumcount() // chunk_len
 
-        # Stack all tensors to create a single 3D tensor
-        return torch.stack(tensor_list)
+        # Generate a global chunk ID by enumerating each unique combination of unique_int_id and chunk_idx
+        df['data_chunk_len'] = (
+            df.groupby(['track_id', 'chunk_idx'])
+            .ngroup()  # ngroup assigns unique numbers to each group
+        )
+
+        return df
+
+    @staticmethod
+    def remove_small_chunks(df, min_size=2):
+        """
+        Removes chunks from the dataframe that have fewer than min_size points.
+
+        Parameters:
+        - df: The dataframe to process.
+        - min_size: The minimum number of points a chunk must have to be retained.
+
+        Returns:
+        - The filtered dataframe.
+        """
+        # Group by global_chunk_id and filter
+        filtered_df = df.groupby('data_chunk_len').filter(lambda x: len(x) >= min_size)
+        return filtered_df
+
+    # def create_tensors(self, chunk_size, padding_value=0):
+    #     tensor_list = []
+    #     for _, group in self.all_df.groupby('track_id'):
+    #         # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
+    #         data = group[self.feature_names].to_numpy()
+    #         # Chunking and padding
+    #         chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+    #         padded_chunks = [
+    #             np.pad(chunk, ((0, max(0, chunk_size - len(chunk))), (0, 0)), 'constant', constant_values=padding_value) for
+    #             chunk in chunks]
+    #         tensor_list.extend([torch.tensor(chunk, dtype=torch.float32) for chunk in padded_chunks])
+
+    #     # Stack all tensors to create a single 3D tensor
+    #     return torch.stack(tensor_list)
 
 data_factory = {"sind": SINDData}

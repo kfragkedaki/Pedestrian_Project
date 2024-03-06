@@ -1,11 +1,14 @@
 import logging
 import os
 import time
+from tqdm import tqdm
+import math
 from collections import OrderedDict
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from src.utils.print_helpers import readable_time, Printer, count_parameters
-from src.utils.model_helpers import l2_reg_loss, save_model, load_model, get_loss_module, get_optimizer
+from src.utils.model_helpers import l2_reg_loss, save_model, load_model, get_loss_module, get_optimizer, check_progress
 from src.model.encoder import model_factory
 
 logger = logging.getLogger("__main__")
@@ -79,7 +82,7 @@ def create_model(config, train_loader, val_loader, data, logger, device):
         console=config["console"],
     )
 
-    return trainer, val_evaluator, start_epoch
+    return model, optimizer, trainer, val_evaluator, start_epoch
 
 
 def evaluate(evaluator, config=None, save_embeddings=True):
@@ -151,7 +154,7 @@ def validate(
     key_metric = 'loss'
     # Update Best Model
     if aggr_metrics[key_metric] < best_value:
-        best_value = aggr_metrics[config[key_metric]]
+        best_value = aggr_metrics[key_metric]
         save_model(
             os.path.join(config["save_dir"], "model_best.pth"),
             epoch,
@@ -160,6 +163,100 @@ def validate(
         best_metrics = aggr_metrics.copy()
 
     return aggr_metrics, best_metrics, best_value
+
+
+def train(
+        model, optimizer, start_epoch, trainer, val_evaluator, train_loader, val_loader, config
+):
+    tensorboard_writer = SummaryWriter(config["tensorboard_dir"])
+
+    best_value = 1e16  # initialize with +inf due to minimizing of metric (loss)
+    best_metrics = {}
+
+    # Evaluate on validation before training
+    aggr_metrics_val, best_metrics, best_value = validate(
+        val_evaluator, tensorboard_writer, config, best_metrics, best_value, epoch=0
+    )
+
+    lr = config["lr"]  # current learning step - when using lr_decay < 1, it changes
+    max_norm = config["max_grad_norm"] if config["max_grad_norm"] > 0 else math.inf
+    total_epoch_time = 0
+
+    for epoch in tqdm(
+        range(start_epoch + 1, config["epochs"] + 1), desc="Training Epoch", leave=False
+    ):
+        mark = epoch if config["save_all"] else "last"
+        epoch_start_time = time.time()
+        aggr_metrics_train = trainer.train_epoch(
+            epoch, max_norm=max_norm
+        )  # dictionary of aggregate epoch metrics
+        epoch_runtime = time.time() - epoch_start_time
+        print()
+        print_str = "Epoch {} Training Summary: ".format(epoch)
+        for k, v in aggr_metrics_train.items():
+            tensorboard_writer.add_scalar("{}/train".format(k), v, epoch)
+            print_str += "{}: {:8f} | ".format(k, v)
+
+        logger.info(print_str)
+        logger.info(
+            "Epoch runtime: {} hours, {} minutes, {} seconds\n".format(
+                *readable_time(epoch_runtime)
+            )
+        )
+        total_epoch_time += epoch_runtime
+        avg_epoch_time = total_epoch_time / (epoch - start_epoch)
+        avg_batch_time = avg_epoch_time / len(train_loader)
+        # avg_sample_time = avg_epoch_time / len(train_dataset)
+        logger.info(
+            "Avg epoch train. time: {} hours, {} minutes, {} seconds".format(
+                *readable_time(avg_epoch_time)
+            )
+        )
+        logger.info("Avg batch train. time: {} seconds".format(avg_batch_time))
+        # logger.info("Avg sample train. time: {} seconds".format(avg_sample_time))
+
+        # evaluate if first or last epoch or at specified interval
+        if (
+            (epoch == config["epochs"])
+            or (epoch == start_epoch + 1)
+            or (epoch % config["val_interval"] == 0)
+        ):
+            aggr_metrics_val, best_metrics, best_value = validate(
+                val_evaluator,
+                tensorboard_writer,
+                config,
+                best_metrics,
+                best_value,
+                epoch,
+            )
+
+        save_model(
+            os.path.join(config["save_dir"], "model_{}.pth".format(mark)),
+            epoch,
+            model,
+            optimizer,
+        )
+
+        # Learning rate scheduling
+        if epoch % config["lr_step"] == 0:
+            save_model(
+                os.path.join(config["save_dir"], "model_{}.pth".format(epoch)),
+                epoch,
+                model,
+                optimizer,
+            )
+            lr = lr * config["lr_decay"]
+
+            logger.info("Learning rate updated to: {}".format(lr))
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+
+        # Difficulty scheduling
+        if config["harden"] and check_progress(epoch):
+            train_loader.dataset.update()
+            val_loader.dataset.update()
+
+    return aggr_metrics_val, best_metrics, best_value
 
 
 class BaseModel(object):

@@ -79,9 +79,9 @@ def setup(args):
     # Create checkpoint, prediction and tensorboard directories
     config["initial_timestamp"] = initial_timestamp.strftime("%Y-%m-%d_%H-%M-%S")
 
-    if len(config["experiment_name"]) == 0:
-        rand_suffix = "".join(random.choices(string.ascii_letters + string.digits, k=3))
-        output_dir += "_" + config["initial_timestamp"] + "_" + rand_suffix
+    # if len(config["experiment_name"]) == 0:
+    rand_suffix = "".join(random.choices(string.ascii_letters + string.digits, k=3))
+    output_dir += "_" + config["initial_timestamp"] + "_" + rand_suffix
 
     config["output_dir"] = output_dir
     config["save_dir"] = os.path.join(output_dir, "checkpoints")

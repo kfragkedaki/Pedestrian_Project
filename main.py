@@ -2,7 +2,7 @@
 import logging
 import sys
 import os
-import math
+import time
 import torch
 import logging
 
@@ -10,9 +10,8 @@ import logging
 # from src.utils import load_env
 # from src.agents import Agent
 from src.options import Options
-from src.utils import setup, load_data
-from src.model.model import create_model, evaluate
-
+from src.utils import setup, load_data, register_record, readable_time
+from src.model.model import create_model, evaluate, validate, train
 
 ROOT = os.getcwd()
 
@@ -44,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 
 def run(config):
+    total_start_time = time.time()
+
     # Set the random seed
     if config["seed"] is not None:
         torch.manual_seed(config["seed"])
@@ -67,16 +68,42 @@ def run(config):
     train_loader, val_loader, data = load_data(config, logger)
 
     # Create model
-    trainer, val_evaluator, start_epoch = create_model(config, train_loader, val_loader, data, logger, device)
-    best_metrics = {}
+    model, optimizer, trainer, val_evaluator, start_epoch = create_model(config, train_loader, val_loader, data, logger, device)
 
     if config["eval_only"]:
         logger.info("Evaluating model ...")
         evaluate(val_evaluator, config, save_embeddings=config['save_embeddings'])
     else:
-        max_norm = config["max_grad_norm"] if config["max_grad_norm"] > 0 else math.inf
-        lr = config["lr"]  # current learning step - when using lr_decay < 1, it changes
-        best_value =  1e16  # initialize with +inf due to minimizing of metric (loss)
+        logger.info("Starting training...")
+
+        # Train Model
+        aggr_metrics_val, best_metrics, best_value = train(model, optimizer, start_epoch,
+                                                           trainer, val_evaluator, train_loader, val_loader,
+                                                           config)
+
+        # Export record metrics to a file accumulating records from all experiments in the same root file
+        register_record(
+            config["records_file"],
+            config["initial_timestamp"],
+            config["experiment_name"],
+            best_metrics,
+            aggr_metrics_val,
+            comment=config["comment"],
+        )
+
+        logger.info(
+            "Best loss was {}. Other metrics: {}".format(
+                best_value, best_metrics
+            )
+        )
+        logger.info("All Done!")
+        logger.info(
+            "Total runtime: {} hours, {} minutes, {} seconds\n".format(
+                *readable_time(time.time() - total_start_time)
+            )
+        )
+
+        return best_value
 
 
 if __name__ == "__main__":
