@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from src.utils.poly_process import crosswalk_poly_for_label as cpfl
+from datasets.poly_process import crosswalk_poly_for_label as cpfl
 from datasets.map import SinD_map
 import torch
 

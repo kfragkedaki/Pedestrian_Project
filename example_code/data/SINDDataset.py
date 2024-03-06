@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import torch
 import os
 import matplotlib.pyplot as plt
 from datasets.map import SinD_map
@@ -91,66 +90,6 @@ class SinD:
                     {i: {"x": x, "y": y, "vx": vx, "vy": vy, "ax": ax, "ay": ay}}
                 )
                 i += 1
-
-    def split_pedestrian_data(self, chunk_size=90, padding_value=1000):
-        """
-        Split pedestrian data into fixed-size chunks and convert to torch.Tensor,
-        padding with -1 where data do not exist.
-
-        :param data: Dictionary of pedestrian data.
-        :param chunk_size: Size of each chunk.
-        :return: Dictionary with split and padded data, DataFrame with pedestrian IDs.
-        """
-        split_data = {}
-        idx = 0
-
-        for _, attributes in self.pedestrian_data.items():
-            # Stack 'x', 'y', 'vx', 'vy', 'ax', 'ay' vertically to get a 2D array for each
-            combined_data = np.stack(
-                [
-                    attributes["x"],
-                    attributes["y"],
-                    attributes["vx"],
-                    attributes["vy"],
-                    attributes["ax"],
-                    attributes["ay"],
-                ],
-                axis=1,
-            )
-
-            # Calculate the number of chunks and the number of items in the last chunk
-            total_length = len(attributes["x"])
-            num_chunks = (
-                total_length + chunk_size - 1
-            ) // chunk_size  # Ceiling division
-
-            for i in range(num_chunks):
-                start_index = i * chunk_size
-                end_index = min(start_index + chunk_size, total_length)
-
-                # Slice the combined data for this chunk
-                chunk = combined_data[start_index:end_index]
-
-                # Padding if necessary
-                if chunk.shape[0] < chunk_size:
-                    pad_length = chunk_size - chunk.shape[0]
-                    chunk = np.pad(
-                        chunk,
-                        ((0, pad_length), (0, 0)),
-                        mode="constant",
-                        constant_values=padding_value,
-                    )
-
-                # Splitting combined data back into coords, velocity, and acceleration, and converting to tensors
-                split_data[idx] = {
-                    "coords": torch.tensor(chunk[:, :2], dtype=torch.float32),
-                    "velocity": torch.tensor(chunk[:, 2:4], dtype=torch.float32),
-                    "acceleration": torch.tensor(chunk[:, 4:], dtype=torch.float32),
-                }
-
-                idx += 1
-
-        return split_data
 
     def plot_dataset(
         self,

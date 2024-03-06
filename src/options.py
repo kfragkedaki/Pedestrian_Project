@@ -115,13 +115,7 @@ class Options(object):
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
                                  (size of transformer layers).""",
         )
-        self.parser.add_argument(
-            "--padding_value",
-            type=int,
-            default=1000,
-            help="""Determines the padded value of the data.""",
-        )
-
+        
         # Training process
         self.parser.add_argument(
             "--task",
@@ -173,7 +167,7 @@ class Options(object):
         )
 
         self.parser.add_argument(
-            "--epochs", type=int, default=2, help="Number of training epochs"
+            "--epochs", type=int, default=50, help="Number of training epochs"
         )
         self.parser.add_argument(
             "--val_interval",
@@ -184,7 +178,7 @@ class Options(object):
         self.parser.add_argument(
             "--batch_size",
             type=int,
-            default=512,
+            default=256,
             help="Number of instances per batch during training",
         )
         self.parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
@@ -242,7 +236,7 @@ class Options(object):
         self.parser.add_argument(
             "--hidden_dim",
             type=int,
-            default=256,
+            default=512,
             help="Dimension of feedforward part in transformer layer",
         )
         self.parser.add_argument(

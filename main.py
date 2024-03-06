@@ -6,9 +6,6 @@ import time
 import torch
 import logging
 
-# from src.options import get_options
-# from src.utils import load_env
-# from src.agents import Agent
 from src.options import Options
 from src.utils import setup, load_data, register_record, readable_time
 from src.model.model import create_model, evaluate, validate, train
@@ -19,27 +16,6 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s : %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
-
-# def get_data(file_path, chunk_size, padding_value):
-#     """
-#     Load Full Daatset
-#     """
-
-#     data_path = os.path.join(ROOT, file_path)
-
-#     if os.path.exists(data_path):
-#         logging.info("-------- Loading Dataset --------")
-
-#         sind = SinD()
-#         data = sind.split_pedestrian_data(
-#             chunk_size=chunk_size, padding_value=padding_value
-#         )
-#         print(len(data))
-#     else:
-#         raise FileNotFoundError("No Dataset Available")
-
-#     return data
 
 
 def run(config):
@@ -64,7 +40,6 @@ def run(config):
         logger.info("Device index: {}".format(torch.cuda.current_device()))
 
     ## Build and split data
-    # data = get_data("resources/sind.pkl", chunk_size=90, padding_value=1000)
     train_loader, val_loader, data = load_data(config, logger)
 
     # Create model

@@ -7,7 +7,6 @@ import logging
 import numpy as np
 import pandas as pd
 import torch
-# from datasets.SINDDataset import SinD
 
 
 logger = logging.getLogger("__main__")
