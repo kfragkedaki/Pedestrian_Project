@@ -28,7 +28,7 @@ def load_task_datasets(config):
 
 
 def load_data(config, logger):
-    """ Load data, and split train and test dataset. If eval_only then only val_dataset will be created."""
+    """Load data, and split train and test dataset. If eval_only then only val_dataset will be created."""
     logger.info("Loading and preprocessing data ...")
     data_class = data_factory[config["data_class"]]
     my_data = data_class(config, n_proc=config["n_proc"])

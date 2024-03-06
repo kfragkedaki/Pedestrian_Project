@@ -12,9 +12,8 @@ def check_progress(epoch):
         return True
     else:
         return False
-    
 
-  
+
 # Model Saving and Loading
 def save_model(path, epoch, model, optimizer=None):
     if isinstance(model, torch.nn.DataParallel):
@@ -236,7 +235,8 @@ class RAdam(Optimizer):
                 if N_sma >= 5:
                     if group["weight_decay"] != 0:
                         p_data_fp32.add_(
-                            p_data_fp32, alpha=-group["weight_decay"] * group["lr"],
+                            p_data_fp32,
+                            alpha=-group["weight_decay"] * group["lr"],
                         )
                     denom = exp_avg_sq.sqrt().add_(group["eps"])
                     p_data_fp32.addcdiv_(exp_avg, denom, value=-step_size * group["lr"])

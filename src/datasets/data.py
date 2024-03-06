@@ -98,27 +98,34 @@ class SINDData(BaseData):
         self.config = config
 
         # Load and preprocess data
-        self.all_df = self.load_all(config["data_dir"], pattern=config["pattern"]) # 508644
+        self.all_df = self.load_all(
+            config["data_dir"], pattern=config["pattern"]
+        )  # 508644
 
-        max_seq_len = self.all_df.groupby(by='track_id').size().max() # 11726 8_7_1_P1
-        self.max_seq_len = config['data_chunk_len'] if config['data_chunk_len'] is not None else max_seq_len
+        max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
+        self.max_seq_len = (
+            config["data_chunk_len"]
+            if config["data_chunk_len"] is not None
+            else max_seq_len
+        )
 
-        if config['data_chunk_len'] is not None:
-            self.all_df = self.assign_chunk_idx(self.all_df, config['data_chunk_len'])
+        if config["data_chunk_len"] is not None:
+            self.all_df = self.assign_chunk_idx(self.all_df, config["data_chunk_len"])
             # Remove chunks with less than 2 points
             self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
         else:
-            self.all_df['data_chunk_len'] = self.all_df['unique_int_id']
+            self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
 
-        self.all_df['unique_int_id'], _ = pd.factorize(self.all_df['track_id'])
-        self.all_df = self.all_df.set_index('data_chunk_len')
-        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
+        self.all_df["unique_int_id"], _ = pd.factorize(self.all_df["track_id"])
+        self.all_df = self.all_df.set_index("data_chunk_len")
+        self.all_IDs = (
+            self.all_df.index.unique()
+        )  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
 
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
         self.feature_df = self.all_df[self.feature_names]
 
         # self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len, padding_value=config['padding_value'])
-
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -167,35 +174,30 @@ class SINDData(BaseData):
         """Reads a single .csv, which typically contains a day of datasets of various machine sessions."""
         file_name = os.path.basename(os.path.dirname(filepath))
         df = pd.read_csv(filepath)
-        df['file_id'] = file_name
+        df["file_id"] = file_name
 
         return df
 
     @staticmethod
     def sort_clean_data(df):
         """"""
-        keep_cols = [
-            "track_id",
-            "timestamp_ms",
-            "x",
-            "y",
-            "vx",
-            "vy",
-            "ax",
-            "ay"
-        ]
+        keep_cols = ["track_id", "timestamp_ms", "x", "y", "vx", "vy", "ax", "ay"]
 
         # sort based on time and id
-        df_sorted = df.sort_values(by=['track_id', 'timestamp_ms'])
+        df_sorted = df.sort_values(by=["track_id", "timestamp_ms"])
 
         # make track id unique among different files
-        df_sorted['track_id'] = df_sorted['file_id'].astype(str) + '_' + df_sorted['track_id'].astype(str)
+        df_sorted["track_id"] = (
+            df_sorted["file_id"].astype(str) + "_" + df_sorted["track_id"].astype(str)
+        )
 
         # keep columns
         df_final = df_sorted[keep_cols]
 
         # remove_stationary_data
-        df_final = df_final[df_final.groupby('track_id')[['vx', 'vy']].transform(any).all(axis=1)]
+        df_final = df_final[
+            df_final.groupby("track_id")[["vx", "vy"]].transform(any).all(axis=1)
+        ]
 
         return df_final
 
@@ -230,13 +232,12 @@ class SINDData(BaseData):
     def assign_chunk_idx(df, chunk_len):
         """Assigns a chunk index to each row and trajectory."""
         # Calculate local chunk indices within each unique trajectory
-        df['chunk_idx'] = df.groupby('track_id').cumcount() // chunk_len
+        df["chunk_idx"] = df.groupby("track_id").cumcount() // chunk_len
 
         # Generate a global chunk ID by enumerating each unique combination of unique_int_id and chunk_idx
-        df['data_chunk_len'] = (
-            df.groupby(['track_id', 'chunk_idx'])
-            .ngroup()  # ngroup assigns unique numbers to each group
-        )
+        df["data_chunk_len"] = df.groupby(
+            ["track_id", "chunk_idx"]
+        ).ngroup()  # ngroup assigns unique numbers to each group
 
         return df
 
@@ -253,7 +254,7 @@ class SINDData(BaseData):
         - The filtered dataframe.
         """
         # Group by global_chunk_id and filter
-        filtered_df = df.groupby('data_chunk_len').filter(lambda x: len(x) >= min_size)
+        filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
         return filtered_df
 
     # def create_tensors(self, chunk_size, padding_value=0):
@@ -270,5 +271,6 @@ class SINDData(BaseData):
 
     #     # Stack all tensors to create a single 3D tensor
     #     return torch.stack(tensor_list)
+
 
 data_factory = {"sind": SINDData}

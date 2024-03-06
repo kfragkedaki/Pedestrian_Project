@@ -79,11 +79,14 @@ class FixedPositionalEncoding(nn.Module):
             1
         )  # (max_len, 1)
         div_term = torch.exp(
-            torch.arange(0, embedding_dim, 2).float() * (-math.log(10000.0) / embedding_dim)
+            torch.arange(0, embedding_dim, 2).float()
+            * (-math.log(10000.0) / embedding_dim)
         )  # (embedding_dim/2,)
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = scale_factor * pe.unsqueeze(1).transpose(0, 1)  # (1, max_len, embedding_dim)
+        pe = scale_factor * pe.unsqueeze(1).transpose(
+            0, 1
+        )  # (1, max_len, embedding_dim)
         self.register_buffer(
             "pe", pe
         )  # this stores the variable in the state_dict (used for non-trainable variables)
@@ -96,7 +99,7 @@ class FixedPositionalEncoding(nn.Module):
             x: [sequence length, batch size, embed dim]
             output: [sequence length, batch size, embed dim]
         """
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
@@ -108,7 +111,7 @@ class LearnablePositionalEncoding(nn.Module):
         # Each position gets its own embedding
         # Since indices are always 0 ... max_len, we don't have to do a look-up
         self.pe = nn.Parameter(
-            torch.empty( 1, max_len, embedding_dim)  # (1, max_len, embedding_dim)
+            torch.empty(1, max_len, embedding_dim)  # (1, max_len, embedding_dim)
         )  # requires_grad automatically set to True
         nn.init.uniform_(self.pe, -0.02, 0.02)
 
@@ -121,7 +124,7 @@ class LearnablePositionalEncoding(nn.Module):
             output: [sequence length, batch size, embed dim]
         """
 
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)
 
 
@@ -142,7 +145,9 @@ class TransformerBatchNormEncoderLayer(nn.modules.Module):
         self, embedding_dim, nhead, hidden_dim=2048, dropout=0.1, activation="relu"
     ):
         super(TransformerBatchNormEncoderLayer, self).__init__()
-        self.self_attn = MultiheadAttention(embedding_dim, nhead, dropout=dropout, batch_first=True)
+        self.self_attn = MultiheadAttention(
+            embedding_dim, nhead, dropout=dropout, batch_first=True
+        )
         # Implementation of Feedforward model
         self.linear1 = Linear(embedding_dim, hidden_dim)
         self.dropout = Dropout(dropout)
@@ -183,7 +188,9 @@ class TransformerBatchNormEncoderLayer(nn.modules.Module):
         #  Transformer Model and Residual connection
         src2 = self.self_attn(
             src, src, src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
-        )[0] # attn_output, attn_output_weights
+        )[
+            0
+        ]  # attn_output, attn_output_weights
         src = src + self.dropout1(src2)  # (batch_size, seq_len, embedding_dim)
 
         # Normalization
@@ -275,7 +282,7 @@ class TSTransformerEncoder(nn.Module):
         )  # the output transformer encoder/decoder embeddings don't include non-linearity
         embedding = output
 
-        output = self.dropout1(output) # (batch_size, seq_length, embedding_dim)
+        output = self.dropout1(output)  # (batch_size, seq_length, embedding_dim)
 
         # Most probably defining a Linear(embedding_dim,feat_dim) vectorizes the operation over (seq_length, batch_size).
         output = self.output_layer(output)  # (batch_size, seq_length, feat_dim)

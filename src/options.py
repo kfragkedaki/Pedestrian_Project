@@ -49,8 +49,11 @@ class Options(object):
             default="",
             help="A comment/description of the experiment",
         )
-        self.parser.add_argument('--records_file', default='./records.xls',
-                                 help='Excel file keeping all records of experiments')
+        self.parser.add_argument(
+            "--records_file",
+            default="./records.xls",
+            help="Excel file keeping all records of experiments",
+        )
 
         # System
         self.parser.add_argument(
@@ -65,8 +68,12 @@ class Options(object):
             help="Print batch info every this many batches",
         )
         self.parser.add_argument("--no_cuda", action="store_true", help="Disable CUDA")
-        self.parser.add_argument('--n_proc', type=int, default=-1,
-                                 help='Number of processes for data loading/preprocessing. By default, equals num. of available cores.')
+        self.parser.add_argument(
+            "--n_proc",
+            type=int,
+            default=-1,
+            help="Number of processes for data loading/preprocessing. By default, equals num. of available cores.",
+        )
         self.parser.add_argument(
             "--num_workers",
             type=int,
@@ -74,7 +81,9 @@ class Options(object):
             help="dataloader threads. 0 for single-thread.",
         )
         self.parser.add_argument(
-            "--seed", type=int, default=1337,
+            "--seed",
+            type=int,
+            default=1337,
             help="Random seed to use. None by default, set to an integer for reproducibility",
         )
 
@@ -115,7 +124,7 @@ class Options(object):
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
                                  (size of transformer layers).""",
         )
-        
+
         # Training process
         self.parser.add_argument(
             "--task",
@@ -197,7 +206,7 @@ class Options(object):
         )
         self.parser.add_argument(
             "--optimizer",
-            choices={"Adam", "RAdam"}, # "NAdam", "Adamax"
+            choices={"Adam", "RAdam"},  # "NAdam", "Adamax"
             default="RAdam",
             help="Optimizer",
         )
@@ -283,11 +292,11 @@ class Options(object):
         if args.exclude_feats is not None:
             args.exclude_feats = [int(i) for i in args.exclude_feats.split(",")]
 
-         # If evaluating, no validation set is used
+        # If evaluating, no validation set is used
         if args.eval_only:
             args.val_ratio = 1.0
             args.save_embeddings = True
-        elif not args.eval_only and args.val_ratio == 0.0: 
+        elif not args.eval_only and args.val_ratio == 0.0:
             raise ValueError("Validation ratio cannot be 0.0 when training the model")
 
         return args

@@ -8,12 +8,20 @@ from collections import OrderedDict
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from src.utils.print_helpers import readable_time, Printer, count_parameters
-from src.utils.model_helpers import l2_reg_loss, save_model, load_model, get_loss_module, get_optimizer, check_progress
+from src.utils.model_helpers import (
+    l2_reg_loss,
+    save_model,
+    load_model,
+    get_loss_module,
+    get_optimizer,
+    check_progress,
+)
 from src.model.encoder import model_factory
 
 logger = logging.getLogger("__main__")
 
 val_times = {"total_time": 0, "count": 0}
+
 
 def load_task_model(config):
     """For the task specified in the configuration returns the corresponding combination of
@@ -22,9 +30,7 @@ def load_task_model(config):
     task = config["task"]
 
     if task == "imputation":
-        return (
-            UnsupervisedAttentionModel
-        )
+        return UnsupervisedAttentionModel
     else:
         raise NotImplementedError("Task '{}' not implemented".format(task))
 
@@ -151,7 +157,7 @@ def validate(
         print_str += "{}: {:8f} | ".format(k, v)
     logger.info(print_str)
 
-    key_metric = 'loss'
+    key_metric = "loss"
     # Update Best Model
     if aggr_metrics[key_metric] < best_value:
         best_value = aggr_metrics[key_metric]
@@ -166,7 +172,14 @@ def validate(
 
 
 def train(
-        model, optimizer, start_epoch, trainer, val_evaluator, train_loader, val_loader, config
+    model,
+    optimizer,
+    start_epoch,
+    trainer,
+    val_evaluator,
+    train_loader,
+    val_loader,
+    config,
 ):
     tensorboard_writer = SummaryWriter(config["tensorboard_dir"])
 

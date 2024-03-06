@@ -1,6 +1,6 @@
-
 import sys
 import builtins
+
 
 class Printer(object):
     """Class for printing output by refreshing the same line in the console, e.g. for indicating progress of a process"""
@@ -34,4 +34,3 @@ def count_parameters(model, trainable=False):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
     else:
         return sum(p.numel() for p in model.parameters())
-

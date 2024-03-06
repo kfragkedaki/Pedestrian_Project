@@ -95,4 +95,3 @@ def setup(args):
     logger.info("Stored configuration file in '{}'".format(output_dir))
 
     return config
-

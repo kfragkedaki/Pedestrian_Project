@@ -29,7 +29,7 @@ def run(config):
     file_handler = logging.FileHandler(os.path.join(config["output_dir"], "output.log"))
     logger.addHandler(file_handler)
     logger.info("Running:\n{}\n".format(" ".join(sys.argv)))  # command used to run
-    
+
     # Set the device
     use_cuda = torch.cuda.is_available() and not config["no_cuda"]
     use_mps = torch.backends.mps.is_available() and not config["no_cuda"]
@@ -43,18 +43,27 @@ def run(config):
     train_loader, val_loader, data = load_data(config, logger)
 
     # Create model
-    model, optimizer, trainer, val_evaluator, start_epoch = create_model(config, train_loader, val_loader, data, logger, device)
+    model, optimizer, trainer, val_evaluator, start_epoch = create_model(
+        config, train_loader, val_loader, data, logger, device
+    )
 
     if config["eval_only"]:
         logger.info("Evaluating model ...")
-        evaluate(val_evaluator, config, save_embeddings=config['save_embeddings'])
+        evaluate(val_evaluator, config, save_embeddings=config["save_embeddings"])
     else:
         logger.info("Starting training...")
 
         # Train Model
-        aggr_metrics_val, best_metrics, best_value = train(model, optimizer, start_epoch,
-                                                           trainer, val_evaluator, train_loader, val_loader,
-                                                           config)
+        aggr_metrics_val, best_metrics, best_value = train(
+            model,
+            optimizer,
+            start_epoch,
+            trainer,
+            val_evaluator,
+            train_loader,
+            val_loader,
+            config,
+        )
 
         # Export record metrics to a file accumulating records from all experiments in the same root file
         register_record(
@@ -67,9 +76,7 @@ def run(config):
         )
 
         logger.info(
-            "Best loss was {}. Other metrics: {}".format(
-                best_value, best_metrics
-            )
+            "Best loss was {}. Other metrics: {}".format(best_value, best_metrics)
         )
         logger.info("All Done!")
         logger.info(
