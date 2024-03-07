@@ -101,7 +101,7 @@ class SinD:
         pedestrian_data = data if data else self.pedestrian_data
         ax1 = plt.figure(1).add_subplot(projection="3d")
         ax2 = (
-            self.map.plot_areas(alpha=alpha)[0]
+            self.map.plot_areas(alpha=alpha)
             if map_overlay == True
             else plt.figure(2).add_subplot()
         )

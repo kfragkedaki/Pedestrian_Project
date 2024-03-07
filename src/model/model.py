@@ -101,11 +101,10 @@ def evaluate(evaluator, config=None, save_embeddings=True):
         )
     eval_runtime = time.time() - eval_start_time
 
-    if save_embeddings:
-        embeddings_filepath = os.path.join(
-            os.path.join(config["output_dir"], "embeddings.pt")
-        )
-        torch.save(per_batch["embeddings"], embeddings_filepath)
+    outputs_filepath = os.path.join(
+        os.path.join(config["output_dir"], "outut_data.pt")
+    )
+    torch.save(per_batch, outputs_filepath)
 
     print_str = "Evaluation Summary: "
     for k, v in aggr_metrics.items():
@@ -395,6 +394,7 @@ class UnsupervisedAttentionModel(BaseModel):
             }
             if save_embeddings:
                 per_batch["embeddings"] = []
+                per_batch["embeddings_original"] = []
 
         for i, batch in enumerate(self.dataloader):
 
@@ -407,7 +407,7 @@ class UnsupervisedAttentionModel(BaseModel):
                 self.device
             )  # 0s: ignore (because they are padded)
 
-            predictions, embedding = self.encoder(
+            predictions,(embeddings, embeddings_original) = self.encoder(
                 X.to(self.device), padding_masks
             )  # (batch_size, padded_length, feat_dim)
 
@@ -428,7 +428,8 @@ class UnsupervisedAttentionModel(BaseModel):
                 per_batch["metrics"].append([loss.cpu().numpy()])
                 per_batch["IDs"].append(IDs)
                 if save_embeddings:
-                    per_batch["embeddings"].append(embedding.cpu().numpy())
+                    per_batch["embeddings"].append(embeddings.cpu().numpy())
+                    per_batch["embeddings_original"].append(embeddings_original.cpu().numpy())
 
             metrics = {"loss": mean_loss}
             if i % self.print_interval == 0:

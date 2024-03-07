@@ -276,15 +276,16 @@ class TSTransformerEncoder(nn.Module):
         # NOTE: logic for padding masks is reversed to comply with definition in MultiHeadAttention, TransformerEncoderLayer
         output = self.transformer_encoder(
             inp, src_key_padding_mask=~padding_masks
-        )  # (batch_size, seq_len, embedding_dim)
+        )  # (batch_size, seq_len, embedding_dim) # x3
+        embeddings_original = output
         output = self.act(
             output
         )  # the output transformer encoder/decoder embeddings don't include non-linearity
-        embedding = output
+        embeddings = output
 
         output = self.dropout1(output)  # (batch_size, seq_length, embedding_dim)
 
         # Most probably defining a Linear(embedding_dim,feat_dim) vectorizes the operation over (seq_length, batch_size).
         output = self.output_layer(output)  # (batch_size, seq_length, feat_dim)
 
-        return output, embedding
+        return output, (embeddings, embeddings_original)

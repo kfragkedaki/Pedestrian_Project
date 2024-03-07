@@ -264,7 +264,7 @@ class Options(object):
             "--dropout",
             type=float,
             default=0.1,
-            help="Dropout applied to transformer encoder layers. None for no dropout.",
+            help="Dropout applied to transformer encoder layers. Set to 0 for no dropout.",
         )
         self.parser.add_argument(
             "--pos_encoding",
@@ -296,6 +296,7 @@ class Options(object):
         if args.eval_only:
             args.val_ratio = 1.0
             args.save_embeddings = True
+            args.dropout = 0.0 # No dropout during evaluation
         elif not args.eval_only and args.val_ratio == 0.0:
             raise ValueError("Validation ratio cannot be 0.0 when training the model")
 

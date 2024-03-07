@@ -55,12 +55,15 @@ class SinD_map:
         osmhandler.apply_file(map_dir)
         return osmhandler.osm_data
 
+
     def plot_areas(
-        self, highlight_areas: list = ["crosswalk", "sidewalk"], alpha: float = 0.08
+        self, ax=None, highlight_areas: list = ["crosswalk", "sidewalk"], alpha: float = 0.08
     ):
-        fig, ax = plt.subplots()
-        fig.set_size_inches(6.5, 4.13)
-        fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
+        if ax is None:
+            fig, ax = plt.subplots()
+            fig.set_size_inches(6.5, 4.13)
+            fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
+        
         _points = self.get_area("")
         ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct
         _attr = dir(self)
@@ -74,15 +77,15 @@ class SinD_map:
         _colors[_ids] = "green"
         _alphas = np.array([0.05] * len(_polys))
         _alphas[_ids] = alpha
-        print(_polys)
         for i, _poly in enumerate(_polys):
-            print("poly: ", eval(".".join(["self", _poly])))
             ax.add_patch(
                 PolygonPatch(
                     eval(".".join(["self", _poly])), alpha=_alphas[i], color=_colors[i]
                 )
             )
-        return ax, fig
+
+        return ax
+
 
     def get_area(self, regex: str = "crosswalk", tag_key: str = "name"):
         _ways, _nodes, _locs = [], [], []
