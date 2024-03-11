@@ -55,15 +55,17 @@ class SinDMap:
         osmhandler.apply_file(map_dir)
         return osmhandler.osm_data
 
-
     def plot_areas(
-        self, ax=None, highlight_areas: list = ["crosswalk", "sidewalk"], alpha: float = 0.08
+        self,
+        ax=None,
+        highlight_areas: list = ["crosswalk", "sidewalk"],
+        alpha: float = 0.08,
     ):
         if ax is None:
             fig, ax = plt.subplots()
             fig.set_size_inches(6.5, 4.13)
             fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
-        
+
         _points = self.get_area("")
         ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct
         _attr = dir(self)
@@ -85,46 +87,84 @@ class SinDMap:
             )
 
         return ax
-    
-    def plot_single_data(self, pedestrian_data, map_overlay: bool = True, alpha: float = 0.2):
+
+    def plot_single_data(
+        self,
+        pedestrian_data,
+        map_overlay: bool = True,
+        alpha: float = 0.2,
+        padding_masks=None,
+    ):
         # Create a single figure
-        fig = plt.figure(figsize=(7*3, 6))  # Adjust figure size as needed
+        fig = plt.figure(figsize=(7 * 3, 6))  # Adjust figure size as needed
 
         # Add subplots on the same row. All three plots will now be in the same row.
-        ax1 = fig.add_subplot(1, 3, 1, projection='3d')  # First plot, 3D
+        ax1 = fig.add_subplot(1, 3, 1, projection="3d")  # First plot, 3D
         ax2 = fig.add_subplot(1, 3, 2)  # Second plot, 2D
-        ax3 = fig.add_subplot(1, 3, 3, projection='3d')  # Third plot, 3D
+        ax3 = fig.add_subplot(1, 3, 3, projection="3d")  # Third plot, 3D
 
         # Plot map areas on ax2 if map_overlay is True
         if map_overlay:
-            self.plot_areas(alpha=alpha, ax=ax2)  # Adjust this call according to your map object's API
+            self.plot_areas(
+                alpha=alpha, ax=ax2
+            )  # Adjust this call according to your map object's API
         ax2.set_title("Pedestrian trajectories")
 
         for _id in pedestrian_data.keys():
-            x, y = np.array(pedestrian_data[_id]["x"]), np.array(pedestrian_data[_id]["y"])
-            vx, vy = pedestrian_data[_id]["vx"], pedestrian_data[_id]["vy"]
-            ax, ay = pedestrian_data[_id]["ax"], pedestrian_data[_id]["ay"]
+            # Apply padding mask to filter out padded values
+            data = pedestrian_data[_id]
+            if padding_masks is not None:
+                mask = padding_masks[_id]
+                data = data[mask]
+
+            x, y = np.array(data["x"]), np.array(data["y"])
+            vx, vy = data["vx"], data["vy"]
+            ax, ay = data["ax"], data["ay"]
             v = np.sqrt(np.array(vx).T ** 2 + np.array(vy).T ** 2)
             a = np.sqrt(np.array(ax).T ** 2 + np.array(ay).T ** 2)
 
             ax1.plot(x, y, zs=v, c="r"), ax1.set_title(
                 "Velocity profile of trajectories"
             ), ax1.set_xlim(0, 30), ax1.set_ylim(0, 30), ax1.set_zlim(0, 5)
-            ax1.set_xlabel('X'), ax1.set_ylabel('Y'), ax1.set_zlabel('V')
+            ax1.set_xlabel("X"), ax1.set_ylabel("Y"), ax1.set_zlabel("V")
             ax2.plot(x, y, c="orange"), ax2.set_title("Pedestrian trajectories")
             ax3.plot(x, y, zs=a, c="r"), ax3.set_title(
                 "Acceleration profile of trajectories"
             ), ax3.set_xlim(0, 30), ax3.set_ylim(0, 30), ax3.set_zlim(0, 5)
-            ax3.set_xlabel('X'), ax3.set_ylabel('Y'), ax3.set_zlabel('A')
+            ax3.set_xlabel("X"), ax3.set_ylabel("Y"), ax3.set_zlabel("A")
         plt.grid()
         plt.show()
 
-    def plot_dataset(self, pedestrian_data=None, color:str = "orange", map_overlay: bool = True, alpha: float = 0.2, title:int = 0):
-        ax2 = self.plot_areas(alpha=alpha) if map_overlay == True else plt.figure(2).add_subplot()
+    def plot_dataset(
+        self,
+        pedestrian_data=None,
+        color: str = "orange",
+        map_overlay: bool = True,
+        alpha: float = 0.2,
+        title: int = 0,
+        padding_masks=None,
+    ):
+        ax2 = (
+            self.plot_areas(alpha=alpha)
+            if map_overlay == True
+            else plt.figure(2).add_subplot()
+        )
         for _id in pedestrian_data.keys():
-            x, y = np.array(pedestrian_data[_id][:, 0]), np.array(pedestrian_data[_id][:, 1])
-            x, y = x[x != 0], y[y != 0]
-            ax2.plot(x, y, c=color), ax2.set_title(f"Pedestrian trajectories starting from {title}")
+            data = pedestrian_data[_id]
+            # Apply padding mask to filter out padded values
+            if padding_masks is not None:
+                mask = padding_masks[_id]
+                data = data[mask]
+
+            x, y = np.array(data[:, 0]), np.array(data[:, 1])
+
+            ax2.plot(x, y, c=color), ax2.set_title(
+                f"Pedestrian trajectories starting from {title}"
+            )
+
+            ax2.plot(x[0], y[0], c="green")
+            ax2.plot(x[-1], y[-1], c="red")
+
         plt.grid()
         plt.show()
 
