@@ -14,7 +14,7 @@ from src.utils.model_helpers import (
     load_model,
     get_loss_module,
     get_optimizer,
-    check_progress,
+    EarlyStopping,
 )
 from src.model.encoder import model_factory
 
@@ -101,9 +101,7 @@ def evaluate(evaluator, config=None, save_embeddings=True):
         )
     eval_runtime = time.time() - eval_start_time
 
-    outputs_filepath = os.path.join(
-        os.path.join(config["output_dir"], "outut_data.pt")
-    )
+    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "outut_data.pt"))
     torch.save(per_batch, outputs_filepath)
 
     print_str = "Evaluation Summary: "
@@ -194,6 +192,13 @@ def train(
     max_norm = config["max_grad_norm"] if config["max_grad_norm"] > 0 else math.inf
     total_epoch_time = 0
 
+    early_stopping = None
+    if config["early_stopping_patience"] is not None:
+        early_stopping = EarlyStopping(
+            patience=config["early_stopping_patience"],
+            delta=config["early_stopping_delta"],
+        )
+
     for epoch in tqdm(
         range(start_epoch + 1, config["epochs"] + 1), desc="Training Epoch", leave=False
     ):
@@ -242,6 +247,10 @@ def train(
                 epoch,
             )
 
+            if early_stopping is not None and early_stopping(aggr_metrics_val["loss"]):
+                print(f"Early Stopping, epoch {epoch}")
+                break
+
         save_model(
             os.path.join(config["save_dir"], "model_{}.pth".format(mark)),
             epoch,
@@ -264,7 +273,7 @@ def train(
                 param_group["lr"] = lr
 
         # Difficulty scheduling
-        if config["harden"] and check_progress(epoch):
+        if config["harden"] and epoch % config["harden_step"] == 0:
             train_loader.dataset.update()
             val_loader.dataset.update()
 
@@ -391,6 +400,7 @@ class UnsupervisedAttentionModel(BaseModel):
                 "predictions": [],
                 "metrics": [],
                 "IDs": [],
+                "padding_masks": [],
             }
             if save_embeddings:
                 per_batch["embeddings"] = []
@@ -407,7 +417,7 @@ class UnsupervisedAttentionModel(BaseModel):
                 self.device
             )  # 0s: ignore (because they are padded)
 
-            predictions,(embeddings, embeddings_original) = self.encoder(
+            predictions, (embeddings, embeddings_original) = self.encoder(
                 X.to(self.device), padding_masks
             )  # (batch_size, padded_length, feat_dim)
 
@@ -427,9 +437,12 @@ class UnsupervisedAttentionModel(BaseModel):
                 per_batch["predictions"].append(predictions.cpu().numpy())
                 per_batch["metrics"].append([loss.cpu().numpy()])
                 per_batch["IDs"].append(IDs)
+                per_batch["padding_masks"].append(padding_masks.cpu().numpy())
                 if save_embeddings:
                     per_batch["embeddings"].append(embeddings.cpu().numpy())
-                    per_batch["embeddings_original"].append(embeddings_original.cpu().numpy())
+                    per_batch["embeddings_original"].append(
+                        embeddings_original.cpu().numpy()
+                    )
 
             metrics = {"loss": mean_loss}
             if i % self.print_interval == 0:

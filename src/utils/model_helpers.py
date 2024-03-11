@@ -6,14 +6,6 @@ import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 
 
-def check_progress(epoch):
-
-    if epoch in [100, 140, 160, 220, 280, 340]:
-        return True
-    else:
-        return False
-
-
 # Model Saving and Loading
 def save_model(path, epoch, model, optimizer=None):
     if isinstance(model, torch.nn.DataParallel):
@@ -250,3 +242,30 @@ class RAdam(Optimizer):
                     p.data.copy_(p_data_fp32)
 
         return loss
+
+
+# Early Stoping
+
+
+class EarlyStopping:
+    def __init__(self, patience=10, delta=1e-4):
+        self.patience = patience
+        self.counter = 0
+        self.best_score = None
+        self.delta = delta
+        self.early_stop = False
+
+    def __call__(self, val_loss):
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0
+
+        return self.early_stop

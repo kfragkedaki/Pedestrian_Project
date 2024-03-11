@@ -120,7 +120,7 @@ class Options(object):
         self.parser.add_argument(
             "--data_chunk_len",
             type=int,
-            default=60,
+            default=90,
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
                                  (size of transformer layers).""",
         )
@@ -135,7 +135,7 @@ class Options(object):
         self.parser.add_argument(
             "--masking_ratio",
             type=float,
-            default=0.15,
+            default=0.1,
             help="Imputation: mask this proportion of each variable",
         )
         self.parser.add_argument(
@@ -174,9 +174,26 @@ class Options(object):
             action="store_true",
             help="Makes training objective progressively harder, by masking more of the input",
         )
-
         self.parser.add_argument(
-            "--epochs", type=int, default=50, help="Number of training epochs"
+            "--harden_step",
+            type=int,
+            default=10,
+            help="Makes training objective progressively harder every this many epochs",
+        )
+        self.parser.add_argument(
+            "--early_stopping_patience",
+            type=str,
+            default=None,
+            help="Use of Ray for hyperparameter tuning. When the model does not improve for that many consecutive epochs, terminate training. Use none for no early stopping",
+        )
+        self.parser.add_argument(
+            "--early_stopping_delta",
+            type=float,
+            default=0.0,
+            help="Use of Ray for hyperparameter tuning. A change of less than delta in the monitored quantity will count as no improvement",
+        )
+        self.parser.add_argument(
+            "--epochs", type=int, default=500, help="Number of training epochs"
         )
         self.parser.add_argument(
             "--val_interval",
@@ -292,11 +309,14 @@ class Options(object):
         if args.exclude_feats is not None:
             args.exclude_feats = [int(i) for i in args.exclude_feats.split(",")]
 
+        if args.early_stopping_patience is not None:
+            args.early_stopping_patience = int(args.early_stopping_patience)
+
         # If evaluating, no validation set is used
         if args.eval_only:
             args.val_ratio = 1.0
             args.save_embeddings = True
-            args.dropout = 0.0 # No dropout during evaluation
+            args.dropout = 0.0  # No dropout during evaluation
         elif not args.eval_only and args.val_ratio == 0.0:
             raise ValueError("Validation ratio cannot be 0.0 when training the model")
 
