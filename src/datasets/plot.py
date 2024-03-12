@@ -137,20 +137,27 @@ class SinDMap:
 
     def plot_dataset(
         self,
-        pedestrian_data=None,
-        color: str = "orange",
+        pedestrian_data: dict ={},
+        color: str = 'orange',
         map_overlay: bool = True,
         alpha: float = 0.2,
-        title: int = 0,
-        padding_masks=None,
+        alpha_trajectories: float = 1.0,
+        size_points: int = 10,
+        padding_masks = None,
+        ax = None,
+        title: str = "",
     ):
-        ax2 = (
-            self.plot_areas(alpha=alpha)
-            if map_overlay == True
-            else plt.figure(2).add_subplot()
-        )
-        for _id in pedestrian_data.keys():
-            data = pedestrian_data[_id]
+        show_plot = False
+        if ax is None:
+            show_plot = True
+            ax = (
+                self.plot_areas(alpha=alpha)
+                if map_overlay
+                else plt.figure(2).add_subplot()
+            )
+            ax.set_title(f"Pedestrian trajectories: {title}")
+
+        for _id, data in pedestrian_data.items():
             # Apply padding mask to filter out padded values
             if padding_masks is not None:
                 mask = padding_masks[_id]
@@ -158,15 +165,15 @@ class SinDMap:
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
 
-            ax2.plot(x, y, c=color), ax2.set_title(
-                f"Pedestrian trajectories starting from {title}"
-            )
+            ax.plot(x, y, c=color, alpha=alpha_trajectories), 
 
-            ax2.plot(x[0], y[0], c="green")
-            ax2.plot(x[-1], y[-1], c="red")
+            # Mark the start and end points
+            ax.scatter(x[0], y[0], c="green", s=size_points)
+            ax.scatter(x[-1], y[-1], c="red", s=size_points)
 
-        plt.grid()
-        plt.show()
+        if show_plot:
+            plt.grid()
+            plt.show()
 
     def get_area(self, regex: str = "crosswalk", tag_key: str = "name"):
         _ways, _nodes, _locs = [], [], []
