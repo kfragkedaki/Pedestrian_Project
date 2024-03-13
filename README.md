@@ -18,15 +18,17 @@ The following commands assume that you have created a new root directory inside 
 `mkdir experiments`. Inside this already *existing* root directory, each experiment will create a time-stamped output directory containing
 model checkpoints, performance metrics per epoch, the experiment configuration, log files, etc.
 
-### Get SinD data 
+### Get SinD Dataset
 
 The data used in this repository correspond to the [paper](https://arxiv.org/abs/2209.02297). 
 You can get the data by executing `git clone https://github.com/SOTIF-AVLab/SinD.git`. 
 To access the full dataset, you need to contact the authors.
 
-`mkdir resources`
-`cd resources`
-`git clone https://github.com/SOTIF-AVLab/SinD.git`
+```bash
+mkdir resources
+cd resources
+git clone https://github.com/SOTIF-AVLab/SinD.git
+```
 
 ## Run
 
