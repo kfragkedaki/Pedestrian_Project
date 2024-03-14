@@ -15,3 +15,7 @@ alphashape
 descartes
 shapely
 black
+ray[tune]
+chardet
+charset_normalizer
+requests

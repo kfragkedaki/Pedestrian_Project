@@ -8,7 +8,7 @@ import logging
 
 from src.options import Options
 from src.utils import setup, load_data, register_record, readable_time
-from src.model.model import create_model, evaluate, validate, train
+from src.model.model import create_model, evaluate, train
 
 ROOT = os.getcwd()
 
@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run(config):
+def run(config, session=None):
     total_start_time = time.time()
 
     # Set the random seed
@@ -63,6 +63,7 @@ def run(config):
             train_loader,
             val_loader,
             config,
+            session,
         )
 
         # Export record metrics to a file accumulating records from all experiments in the same root file

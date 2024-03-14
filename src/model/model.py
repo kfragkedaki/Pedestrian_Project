@@ -18,6 +18,9 @@ from src.utils.model_helpers import (
 )
 from src.model.encoder import model_factory
 
+from ray import train as tune
+from src.utils.hyperparemer_tuning_config import hyperparameter_config
+
 logger = logging.getLogger("__main__")
 
 val_times = {"total_time": 0, "count": 0}
@@ -155,6 +158,7 @@ def validate(
     logger.info(print_str)
 
     key_metric = "loss"
+
     # Update Best Model
     if aggr_metrics[key_metric] < best_value:
         best_value = aggr_metrics[key_metric]
@@ -177,8 +181,14 @@ def train(
     train_loader,
     val_loader,
     config,
+    session,
 ):
-    tensorboard_writer = SummaryWriter(config["tensorboard_dir"])
+    if config["hyperparameter_tuning"]:
+        tensorboard_writer = SummaryWriter(
+            log_dir=f"{config['output_dir']}/{session.get_trial_id()}"
+        )
+    else:
+        tensorboard_writer = SummaryWriter(config["tensorboard_dir"])
 
     best_value = 1e16  # initialize with +inf due to minimizing of metric (loss)
     best_metrics = {}
@@ -207,8 +217,8 @@ def train(
         aggr_metrics_train = trainer.train_epoch(
             epoch, max_norm=max_norm
         )  # dictionary of aggregate epoch metrics
+
         epoch_runtime = time.time() - epoch_start_time
-        print()
         print_str = "Epoch {} Training Summary: ".format(epoch)
         for k, v in aggr_metrics_train.items():
             tensorboard_writer.add_scalar("{}/train".format(k), v, epoch)
@@ -247,6 +257,9 @@ def train(
                 epoch,
             )
 
+            if config["hyperparameter_tuning"]:
+                tune.report({"loss": aggr_metrics_val["loss"]})
+
             if early_stopping is not None and early_stopping(aggr_metrics_val["loss"]):
                 print(f"Early Stopping, epoch {epoch}")
                 break
@@ -276,6 +289,18 @@ def train(
         if config["harden"] and epoch % config["harden_step"] == 0:
             train_loader.dataset.update()
             val_loader.dataset.update()
+
+    if config["hyperparameter_tuning"]:
+        logger.info(config)
+        tensorboard_writer.add_hparams(
+            hparam_dict={
+                k: v for k, v in config.items() if k in hyperparameter_config.keys()
+            },
+            metric_dict={"loss": aggr_metrics_val["loss"]},
+            run_name=f"{config['output_dir']}/{session.get_trial_id()}",
+        )
+        tensorboard_writer.close()
+        torch.save(model, session.get_trial_dir() + "/model.pt")
 
     return aggr_metrics_val, best_metrics, best_value
 
@@ -352,6 +377,7 @@ class UnsupervisedAttentionModel(BaseModel):
             loss = self.loss_module(
                 predictions, targets, target_masks
             )  # (num_active,) individual loss (square error per element) for each active value in batch
+
             batch_loss = torch.sum(loss)
             mean_loss = batch_loss / len(
                 loss
@@ -426,6 +452,7 @@ class UnsupervisedAttentionModel(BaseModel):
             loss = self.loss_module(
                 predictions, targets, target_masks
             )  # (num_active,) individual loss (square error per element) for each active value in batch
+
             batch_loss = torch.sum(loss).cpu().item()
             mean_loss = batch_loss / len(
                 loss

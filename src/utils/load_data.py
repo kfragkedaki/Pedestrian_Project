@@ -56,7 +56,8 @@ def load_data(config, logger):
     val_data = my_data.feature_df.loc[val_indices]
 
     # Pre-process features
-    if config["data_normalization"] is not None:
+    if config["data_normalization"] != "none":
+        logger.info("Normalizing data ...")
         normalizer = Normalizer(config["data_normalization"])
         train_data = normalizer.normalize(train_data)
         if len(val_indices):

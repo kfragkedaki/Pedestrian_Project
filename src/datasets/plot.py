@@ -137,14 +137,14 @@ class SinDMap:
 
     def plot_dataset(
         self,
-        pedestrian_data: dict ={},
-        color: str = 'orange',
+        pedestrian_data: dict = {},
+        color: str = "orange",
         map_overlay: bool = True,
         alpha: float = 0.2,
         alpha_trajectories: float = 1.0,
         size_points: int = 10,
-        padding_masks = None,
-        ax = None,
+        padding_masks=None,
+        ax=None,
         title: str = "",
     ):
         show_plot = False
@@ -165,7 +165,7 @@ class SinDMap:
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
 
-            ax.plot(x, y, c=color, alpha=alpha_trajectories), 
+            ax.plot(x, y, c=color, alpha=alpha_trajectories),
 
             # Mark the start and end points
             ax.scatter(x[0], y[0], c="green", s=size_points)

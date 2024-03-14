@@ -141,5 +141,6 @@ resources*
 data_generated*
 experiments*
 *.png
+ray_results*
 
 .idea*

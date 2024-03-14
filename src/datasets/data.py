@@ -102,9 +102,7 @@ class SINDData(BaseData):
 
         max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
         self.max_seq_len = (
-            config["data_chunk_len"]
-            if config["data_chunk_len"] is not None
-            else max_seq_len
+            config["data_chunk_len"] if config["data_chunk_len"] != 0 else max_seq_len
         )
 
         if config["data_chunk_len"] is not None:
@@ -192,10 +190,13 @@ class SINDData(BaseData):
         # keep columns
         df_final = df_sorted[keep_cols]
 
-        # remove_stationary_data
+        # remove_stationary_trajectories
         df_final = df_final[
             df_final.groupby("track_id")[["vx", "vy"]].transform(any).all(axis=1)
         ]
+
+        # remove incorrent datarows
+        df_final = df_final[(df_final["vx"] >= 0) & (df_final["vy"] >= 0)]
 
         return df_final
 

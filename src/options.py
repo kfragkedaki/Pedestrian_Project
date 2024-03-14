@@ -101,9 +101,9 @@ class Options(object):
                 "minmax",
                 "per_sample_std",
                 "per_sample_minmax",
-                None,
+                "none",
             },
-            default=None,
+            default="none",
             help="If specified, will apply normalization on the input features of a dataset.",
         )
         self.parser.add_argument(
@@ -122,7 +122,8 @@ class Options(object):
             type=int,
             default=90,
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
-                                 (size of transformer layers).""",
+                                 (size of transformer layers). To use the maximum possible length in the data 
+                                 (cannot exceed 350), set to 0.""",
         )
 
         # Training process
@@ -184,7 +185,7 @@ class Options(object):
             "--early_stopping_patience",
             type=str,
             default=None,
-            help="Use of Ray for hyperparameter tuning. When the model does not improve for that many consecutive epochs, terminate training. Use none for no early stopping",
+            help="Use of Ray for hyperparameter tuning. When the model does not improve for that many consecutive epochs, terminate training. Use None for no early stopping",
         )
         self.parser.add_argument(
             "--early_stopping_delta",
@@ -230,7 +231,7 @@ class Options(object):
         self.parser.add_argument(
             "--l2_reg",
             type=float,
-            default=0,
+            default=0.0,
             help="L2 weight regularization parameter. Set to 0 for no regularization.",
         )
         self.parser.add_argument(
@@ -302,9 +303,16 @@ class Options(object):
             help="Normalization layer to be used internally in transformer encoder",
         )
 
-    def parse(self):
+        # Hyperparameter tunning
+        self.parser.add_argument(
+            "--hyperparameter_tuning",
+            action="store_true",
+            help="Use of Ray for hyperparameter tuning",
+        )
 
-        args = self.parser.parse_args()
+    def parse(self, args=None):
+
+        args = self.parser.parse_args(args)
 
         if args.exclude_feats is not None:
             args.exclude_feats = [int(i) for i in args.exclude_feats.split(",")]
