@@ -258,7 +258,7 @@ def train(
             )
 
             if config["hyperparameter_tuning"]:
-                tune.report({"loss": aggr_metrics_val["loss"]})
+                tune.report({"loss": aggr_metrics_val["loss"], "epoch": epoch})
 
             if early_stopping is not None and early_stopping(aggr_metrics_val["loss"]):
                 print(f"Early Stopping, epoch {epoch}")
@@ -292,10 +292,12 @@ def train(
 
     if config["hyperparameter_tuning"]:
         logger.info(config)
-        tensorboard_writer.add_hparams(
-            hparam_dict={
+        hparam_dict = {
                 k: v for k, v in config.items() if k in hyperparameter_config.keys()
-            },
+            }
+        hparam_dict["epochs_trained"] = epoch
+        tensorboard_writer.add_hparams(
+            hparam_dict=hparam_dict,
             metric_dict={"loss": aggr_metrics_val["loss"]},
             run_name=f"{config['output_dir']}/{session.get_trial_id()}",
         )

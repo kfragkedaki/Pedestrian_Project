@@ -184,7 +184,7 @@ class Options(object):
         self.parser.add_argument(
             "--early_stopping_patience",
             type=str,
-            default=None,
+            default=10,
             help="Use of Ray for hyperparameter tuning. When the model does not improve for that many consecutive epochs, terminate training. Use None for no early stopping",
         )
         self.parser.add_argument(
@@ -199,7 +199,7 @@ class Options(object):
         self.parser.add_argument(
             "--val_interval",
             type=int,
-            default=2,
+            default=1,
             help="Evaluate on validation set every this many epochs. Must be >= 1.",
         )
         self.parser.add_argument(
