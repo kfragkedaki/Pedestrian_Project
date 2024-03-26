@@ -11,11 +11,15 @@ from ray.tune.search import ConcurrencyLimiter
 from ray.tune.search.hyperopt import HyperOptSearch
 from ray.air import session
 
+import os
+
+
+ROOT = os.getcwd()
 
 def run(hyperparameter_config: dict):
     # Pretty print the run args
     hyperparameter_config["data_dir"] = (
-        "/home/kfragkedaki/projects/Pedestrian_Project/resources/SinD/Data"
+        ROOT + "/resources/SinD/Data"
     )
     hyperparameter_config["data_class"] = "sind"
     hyperparameter_config["pattern"] = "Ped_smoothed_tracks"
@@ -26,7 +30,7 @@ def run(hyperparameter_config: dict):
         "pretraining_through_imputation-hyperparameter_tuning"
     )
     hyperparameter_config["output_dir"] = (
-        "/home/kfragkedaki/projects/Pedestrian_Project/ray_results"
+        ROOT + "/ray_results"
     )
 
     args_list = [f"--{k}={v}" for k, v in hyperparameter_config.items()]
