@@ -293,8 +293,8 @@ def train(
     if config["hyperparameter_tuning"]:
         logger.info(config)
         hparam_dict = {
-                k: v for k, v in config.items() if k in hyperparameter_config.keys()
-            }
+            k: v for k, v in config.items() if k in hyperparameter_config.keys()
+        }
         hparam_dict["epochs_trained"] = epoch
         tensorboard_writer.add_hparams(
             hparam_dict=hparam_dict,

@@ -3,7 +3,8 @@ from src.datasets.datasplit import split_dataset, save_indices
 from torch.utils.data import DataLoader
 from functools import partial
 from src.datasets.masked_datasets import ImputationDataset, collate_unsuperv
-
+import os
+import torch
 
 def load_task_datasets(config):
     """For the task specified in the configuration returns the corresponding combination of
@@ -54,12 +55,16 @@ def load_data(config, logger):
     )
     train_data = my_data.feature_df.loc[train_indices]
     val_data = my_data.feature_df.loc[val_indices]
-
+    
+    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "original_data.pt"))
+    torch.save({'train_data': train_data, 'val_data': val_data}, outputs_filepath)
+    
     # Pre-process features
     if config["data_normalization"] != "none":
         logger.info("Normalizing data ...")
         normalizer = Normalizer(config["data_normalization"])
-        train_data = normalizer.normalize(train_data)
+        if len(train_indices):
+            train_data = normalizer.normalize(train_data)
         if len(val_indices):
             val_data = normalizer.normalize(val_data)
 

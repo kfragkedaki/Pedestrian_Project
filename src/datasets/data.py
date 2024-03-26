@@ -121,7 +121,7 @@ class SINDData(BaseData):
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
         self.feature_df = self.all_df[self.feature_names]
 
-        # self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len, padding_value=config['padding_value'])
+        # self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len)
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -195,8 +195,8 @@ class SINDData(BaseData):
             df_final.groupby("track_id")[["vx", "vy"]].transform(any).all(axis=1)
         ]
 
-        # remove incorrent datarows
-        df_final = df_final[(df_final["vx"] >= 0) & (df_final["vy"] >= 0)]
+        # # remove incorrent datarows
+        # df_final = df_final[(df_final["vx"] >= 0) & (df_final["vy"] >= 0)]
 
         return df_final
 
@@ -268,8 +268,8 @@ class SINDData(BaseData):
     #             chunk in chunks]
     #         tensor_list.extend([torch.tensor(chunk, dtype=torch.float32) for chunk in padded_chunks])
 
-    #     # Stack all tensors to create a single 3D tensor
-    #     return torch.stack(tensor_list)
+        # Stack all tensors to create a single 3D tensor
+        # return torch.stack(tensor_list)
 
 
 data_factory = {"sind": SINDData}

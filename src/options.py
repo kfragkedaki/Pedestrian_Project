@@ -325,6 +325,7 @@ class Options(object):
             args.val_ratio = 1.0
             args.save_embeddings = True
             args.dropout = 0.0  # No dropout during evaluation
+            args.hyperparameter_tuning = False
         elif not args.eval_only and args.val_ratio == 0.0:
             raise ValueError("Validation ratio cannot be 0.0 when training the model")
 
