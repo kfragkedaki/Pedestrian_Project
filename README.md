@@ -38,7 +38,7 @@ To see all command options with explanations, run: `python src/main.py --help`
 The downstream task of missing value imputation is used to train the model. The data given are split into training and validation data and the loss metric is used for optimization.
 The embedding of are saved under the 
 ```bash
-python main.py --output_dir ./experiments --comment "pretraining through imputation" --name SINDDataset_pretrained --data_dir resources/SinD/Data --data_class sind --pattern Ped_smoothed_tracks --pos_encoding learnable --eval_only --harden
+python main.py --output_dir ./experiments --comment "pretraining through imputation" --name SINDDataset_pretrained --data_dir resources/SinD/Data --data_class sind --pattern Ped_smoothed_tracks --pos_encoding learnable --harden
 ```
 
 ### Evaluation

@@ -16,6 +16,7 @@ descartes
 shapely
 black
 ray[tune]
+hyperopt
 chardet
 charset_normalizer
 requests
