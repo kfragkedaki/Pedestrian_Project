@@ -1,7 +1,7 @@
 import pprint as pp
 
 from src.options import Options
-from src.utils import setup
+from src.utils.config_setup import setup
 from main import run as main
 from src.utils.hyperparemer_tuning_config import hyperparameter_config
 
@@ -34,7 +34,6 @@ def run(hyperparameter_config: dict):
     )
 
     args_list = [f"--{k}={v}" for k, v in hyperparameter_config.items()]
-    args_list.append("--no_cuda")
     args_list.append("--hyperparameter_tuning")
     args_list.append("--harden")
 
@@ -47,15 +46,15 @@ def run(hyperparameter_config: dict):
 
 if __name__ == "__main__":
     N_ITER = 1000
-    ray.init(num_cpus=14)
+    ray.init(num_cpus=12, num_gpus=1)
     searcher = HyperOptSearch(
         space=hyperparameter_config,
         metric="loss",
         mode="min",
         n_initial_points=int(N_ITER / 10),
     )
-    algo = ConcurrencyLimiter(searcher, max_concurrent=3)
-    objective = tune.with_resources(tune.with_parameters(run), resources={"cpu": 14})
+    algo = ConcurrencyLimiter(searcher, max_concurrent=6)
+    objective = tune.with_resources(tune.with_parameters(run), resources={"cpu": 12, "gpu": 1})
 
     tuner = tune.Tuner(
         trainable=objective,
