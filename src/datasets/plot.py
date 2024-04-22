@@ -115,7 +115,7 @@ class SinDMap:
             data = pedestrian_data[_id]
             if padding_masks is not None:
                 non_masked = padding_masks[_id]
-                data = data.loc[non_masked, :]
+                data = data[non_masked]
 
             x, y = np.array(data["x"]), np.array(data["y"])
             vx, vy = data["vx"], data["vy"]
@@ -185,45 +185,107 @@ class SinDMap:
         alpha_trajectories: float = 1.0,
         size_points: int = 10,
         padding_masks=None,
-        ax=None,
         title: str = "",
     ):
-        show_plot = False
-        used_labels = set() 
-        if ax is None:
-            show_plot = True
-            ax = (
-                self.plot_areas(alpha=alpha)
-                if map_overlay
-                else plt.figure(2).add_subplot()
-            )
-            ax.set_title(f"Pedestrian trajectories: {title}")
+        fig = plt.figure(figsize=(7*3, 6))  # Wider figure to accommodate three subplots
+        ax1 = fig.add_subplot(1, 3, 1, projection='3d')
+        ax2 = fig.add_subplot(1, 3, 2)
+        ax3 = fig.add_subplot(1, 3, 3, projection='3d')
 
+        if map_overlay:
+            self.plot_areas(alpha=alpha, ax=ax2)
+        ax2.set_title(f"Pedestrian trajectories: {title}")
+
+        used_labels = set()
         for (_id, data), color_id in zip(pedestrian_data.items(), clusters):
-            # Apply padding mask to filter out padded values
             if padding_masks is not None:
                 non_masked = padding_masks[_id]
                 data = data[non_masked]
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
-
+            vx, vy = np.array(data[:, 2]), np.array(data[:, 3])  # Assuming these are velocities
+            ax, ay = np.array(data[:, 4]), np.array(data[:, 5])  # Assuming these are accelerations
+            v = np.sqrt(vx**2 + vy**2)
+            a = np.sqrt(ax**2 + ay**2)
 
             # Define label, plot data with or without adding it to the legend
             label = f"Cluster {color_id}"
             if label not in used_labels:
-                ax.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
-                used_labels.add(label)  # Mark label as used
+                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
+                used_labels.add(label)
             else:
-                ax.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)  # Plot without label
+                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)
 
-            # Mark the start and end points
-            ax.scatter(x[0], y[0], c="green", s=size_points)
-            ax.scatter(x[-1], y[-1], c="red", s=size_points)
+            ax1.plot(x, y, zs=v, c=colors[color_id])
+            ax3.plot(x, y, zs=a, c=colors[color_id])
+            ax2.scatter(x[0], y[0], c="green", s=size_points)
+            ax2.scatter(x[-1], y[-1], c="red", s=size_points)
+            
+        ax2.legend(title="Cluster")
+        ax1.set_title("Velocity profile of trajectories")
+        ax3.set_title("Acceleration profile of trajectories")
 
-        ax.legend(title="Cluster")
-        if show_plot:
-            plt.grid()
-            plt.show()
+        ax1.set_xlabel("X"), ax1.set_ylabel("Y"), ax1.set_zlabel("Velocity")
+        ax3.set_xlabel("X"), ax3.set_ylabel("Y"), ax3.set_zlabel("Acceleration")
+
+        plt.grid()
+        plt.show()
+
+    def plot_dataset_color_clusters_all(
+        self,
+        pedestrian_data: dict = {},
+        colors: list = [],
+        clusters: list = [],
+        map_overlay: bool = True,
+        alpha: float = 0.2,
+        alpha_trajectories: float = 1.0,
+        size_points: int = 10,
+        padding_masks=None,
+        title: str = "",
+    ):
+        fig = plt.figure(figsize=(7*3, 6))  # Wider figure to accommodate three subplots
+        ax1 = fig.add_subplot(1, 3, 1, projection='3d')
+        ax2 = fig.add_subplot(1, 3, 2)
+        ax3 = fig.add_subplot(1, 3, 3, projection='3d')
+
+        if map_overlay:
+            self.plot_areas(alpha=alpha, ax=ax2)
+        ax2.set_title(f"Pedestrian trajectories: {title}")
+
+        used_labels = set()
+        for (_id, data), color_id in zip(pedestrian_data.items(), clusters):
+            if padding_masks is not None:
+                non_masked = padding_masks[_id]
+                data = data[non_masked]
+
+            x, y = np.array(data[:, 0]), np.array(data[:, 1])
+            vx, vy = np.array(data[:, 2]), np.array(data[:, 3])  # Assuming these are velocities
+            ax, ay = np.array(data[:, 4]), np.array(data[:, 5])  # Assuming these are accelerations
+            v = np.sqrt(vx**2 + vy**2)
+            a = np.sqrt(ax**2 + ay**2)
+
+            # Define label, plot data with or without adding it to the legend
+            label = f"Cluster {color_id}"
+            if label not in used_labels:
+                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
+                used_labels.add(label)
+            else:
+                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)
+
+            ax1.plot(x, y, zs=v, c=colors[color_id])
+            ax3.plot(x, y, zs=a, c=colors[color_id])
+            ax2.scatter(x[0], y[0], c="green", s=size_points)
+            ax2.scatter(x[-1], y[-1], c="red", s=size_points)
+            
+        ax2.legend(title="Cluster", bbox_to_anchor=(1.23, 1), loc='upper right')
+        ax1.set_title("Velocity profile of trajectories")
+        ax3.set_title("Acceleration profile of trajectories")
+
+        ax1.set_xlabel("X"), ax1.set_ylabel("Y"), ax1.set_zlabel("Velocity")
+        ax3.set_xlabel("X"), ax3.set_ylabel("Y"), ax3.set_zlabel("Acceleration")
+
+        plt.grid()
+        plt.show()
 
     def get_area(self, regex: str = "crosswalk", tag_key: str = "name"):
         _ways, _nodes, _locs = [], [], []
