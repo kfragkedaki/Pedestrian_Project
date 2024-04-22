@@ -65,6 +65,22 @@ class Normalizer(object):
         else:
             raise (NameError(f'Normalize method "{self.norm_type}" not implemented'))
 
+    def inverse_normalize(self, df):
+        if self.norm_type == "standardization":
+            return df * self.std + self.mean
+        elif self.norm_type == "minmax":
+            return df * (self.max_val - self.min_val) + self.min_val
+        elif self.norm_type == "per_sample_std":
+            grouped = df.groupby(by=df.index)
+            return df * grouped.transform("std") + grouped.transform("mean")
+        elif self.norm_type == "per_sample_minmax":
+            grouped = df.groupby(by=df.index)
+            min_vals = grouped.transform("min")
+            max_vals = grouped.transform("max")
+            return df * (max_vals - min_vals) + min_vals
+        else:
+            raise NameError(f'Inverse normalize method "{self.norm_type}" not implemented')
+
 
 class BaseData(object):
 
@@ -109,6 +125,8 @@ class SINDData(BaseData):
             self.all_df = self.assign_chunk_idx(self.all_df, config["data_chunk_len"])
             # Remove chunks with less than 2 points
             self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
+            # Reassign chunk indices
+            self.all_df = self.reassign_chunk_indices(self.all_df)
         else:
             self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
 
@@ -120,8 +138,6 @@ class SINDData(BaseData):
 
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
         self.feature_df = self.all_df[self.feature_names]
-
-        # self.tensor_3d = self.create_tensors(chunk_size=self.max_seq_len)
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -255,21 +271,16 @@ class SINDData(BaseData):
         # Group by global_chunk_id and filter
         filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
         return filtered_df
-
-    # def create_tensors(self, chunk_size, padding_value=0):
-    #     tensor_list = []
-    #     for _, group in self.all_df.groupby('track_id'):
-    #         # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
-    #         data = group[self.feature_names].to_numpy()
-    #         # Chunking and padding
-    #         chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
-    #         padded_chunks = [
-    #             np.pad(chunk, ((0, max(0, chunk_size - len(chunk))), (0, 0)), 'constant', constant_values=padding_value) for
-    #             chunk in chunks]
-    #         tensor_list.extend([torch.tensor(chunk, dtype=torch.float32) for chunk in padded_chunks])
-
-        # Stack all tensors to create a single 3D tensor
-        # return torch.stack(tensor_list)
+    
+    
+    def reassign_chunk_indices(self, df):
+        # Create a unique list of the old chunk indices
+        unique_chunks = df['data_chunk_len'].unique()
+        # Create a mapping from old to new indices
+        chunk_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)}
+        # Map the old indices to new indices
+        df['data_chunk_len'] = df['data_chunk_len'].map(chunk_mapping)
+        return df
 
 
 data_factory = {"sind": SINDData}

@@ -273,7 +273,9 @@ class TSTransformerEncoder(nn.Module):
             self.embedding_dim
         )  # [batch_size, seq_length, embedding_dim] project input vectors to embedding_dim dimensional space
         inp = self.pos_enc(inp)  # add positional encoding
+        
         # NOTE: logic for padding masks is reversed to comply with definition in MultiHeadAttention, TransformerEncoderLayer
+        #  padding_masks: (batch_size, seq_length) boolean tensor, 1 means keep vector at this position, 0 means padding
         output = self.transformer_encoder(
             inp, src_key_padding_mask=~padding_masks
         )  # (batch_size, seq_len, embedding_dim) # x3

@@ -104,7 +104,7 @@ def evaluate(evaluator, config=None, save_embeddings=True):
         )
     eval_runtime = time.time() - eval_start_time
 
-    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "outut_data.pt"))
+    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "output_data.pt"))
     torch.save(per_batch, outputs_filepath)
 
     print_str = "Evaluation Summary: "
@@ -375,9 +375,9 @@ class UnsupervisedAttentionModel(BaseModel):
             )  # (batch_size, padded_length, feat_dim)
 
             # Cascade noise masks (batch_size, padded_length, feat_dim) and padding masks (batch_size, padded_length)
-            target_masks = target_masks * padding_masks.unsqueeze(-1)
+            # target_masks = target_masks * padding_masks.unsqueeze(-1)
             loss = self.loss_module(
-                predictions, targets, target_masks
+                predictions, targets, padding_masks.unsqueeze(-1)
             )  # (num_active,) individual loss (square error per element) for each active value in batch
 
             batch_loss = torch.sum(loss)
@@ -450,9 +450,9 @@ class UnsupervisedAttentionModel(BaseModel):
             )  # (batch_size, padded_length, feat_dim)
 
             # Cascade noise masks (batch_size, padded_length, feat_dim) and padding masks (batch_size, padded_length)
-            target_masks = target_masks * padding_masks.unsqueeze(-1)
+            # target_masks = target_masks * padding_masks.unsqueeze(-1)
             loss = self.loss_module(
-                predictions, targets, target_masks
+                predictions, targets, padding_masks.unsqueeze(-1)
             )  # (num_active,) individual loss (square error per element) for each active value in batch
 
             batch_loss = torch.sum(loss).cpu().item()

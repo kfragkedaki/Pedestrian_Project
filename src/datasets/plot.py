@@ -114,8 +114,8 @@ class SinDMap:
             # Apply padding mask to filter out padded values
             data = pedestrian_data[_id]
             if padding_masks is not None:
-                mask = padding_masks[_id]
-                data = data[mask]
+                non_masked = padding_masks[_id]
+                data = data.loc[non_masked, :]
 
             x, y = np.array(data["x"]), np.array(data["y"])
             vx, vy = data["vx"], data["vy"]
@@ -160,8 +160,8 @@ class SinDMap:
         for _id, data in pedestrian_data.items():
             # Apply padding mask to filter out padded values
             if padding_masks is not None:
-                mask = padding_masks[_id]
-                data = data[mask]
+                non_masked = padding_masks[_id]
+                data = data[non_masked]
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
 
@@ -171,6 +171,56 @@ class SinDMap:
             ax.scatter(x[0], y[0], c="green", s=size_points)
             ax.scatter(x[-1], y[-1], c="red", s=size_points)
 
+        if show_plot:
+            plt.grid()
+            plt.show()
+
+    def plot_dataset_color_clusters(
+        self,
+        pedestrian_data: dict = {},
+        colors: list = [],
+        clusters: list = [],
+        map_overlay: bool = True,
+        alpha: float = 0.2,
+        alpha_trajectories: float = 1.0,
+        size_points: int = 10,
+        padding_masks=None,
+        ax=None,
+        title: str = "",
+    ):
+        show_plot = False
+        used_labels = set() 
+        if ax is None:
+            show_plot = True
+            ax = (
+                self.plot_areas(alpha=alpha)
+                if map_overlay
+                else plt.figure(2).add_subplot()
+            )
+            ax.set_title(f"Pedestrian trajectories: {title}")
+
+        for (_id, data), color_id in zip(pedestrian_data.items(), clusters):
+            # Apply padding mask to filter out padded values
+            if padding_masks is not None:
+                non_masked = padding_masks[_id]
+                data = data[non_masked]
+
+            x, y = np.array(data[:, 0]), np.array(data[:, 1])
+
+
+            # Define label, plot data with or without adding it to the legend
+            label = f"Cluster {color_id}"
+            if label not in used_labels:
+                ax.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
+                used_labels.add(label)  # Mark label as used
+            else:
+                ax.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)  # Plot without label
+
+            # Mark the start and end points
+            ax.scatter(x[0], y[0], c="green", s=size_points)
+            ax.scatter(x[-1], y[-1], c="red", s=size_points)
+
+        ax.legend(title="Cluster")
         if show_plot:
             plt.grid()
             plt.show()
