@@ -56,8 +56,10 @@ def load_data(config, logger):
     train_data = my_data.feature_df.loc[train_indices]
     val_data = my_data.feature_df.loc[val_indices]
     
-    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "original_data.pt"))
-    torch.save({'train_data': train_data, 'val_data': val_data}, outputs_filepath)
+    if config["val_ratio"] == 1:
+        # save original data for evaluation
+        outputs_filepath = os.path.join(os.path.join(config["output_dir"], "original_data.pt"))
+        torch.save({'val_data': val_data}, outputs_filepath)
     
     # Pre-process features
     if config["data_normalization"] != "none":
