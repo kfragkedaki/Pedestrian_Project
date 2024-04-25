@@ -183,7 +183,7 @@ class SINDData(BaseData):
 
     @staticmethod
     def read_data(filepath):
-        """Reads a single .csv, which typically contains a day of datasets of various machine sessions."""
+        """Reads a single .csv, which typically contains a set of datasets of various machine sessions."""
         file_name = os.path.basename(os.path.dirname(filepath))
         df = pd.read_csv(filepath)
         df["file_id"] = file_name

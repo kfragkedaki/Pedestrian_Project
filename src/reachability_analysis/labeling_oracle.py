@@ -35,7 +35,7 @@ class LabelingOracleSINDData(SINDData):
         self.map = SinDMap()
         self.config = config
 
-    def create_chunks(self, padding_value=0):
+    def create_chunks(self, padding_value=0, save_data: bool = True):
         list = []
         mask_list = []
         for _, group in self.all_df.groupby('track_id'):
@@ -60,7 +60,16 @@ class LabelingOracleSINDData(SINDData):
                 list.append(padded_chunk)
 
         # Stack all tensors to create a single 3D tensor
-        return np.stack(list), np.stack(mask_list)
+        self.dataset = np.stack(list)
+        self.padded_batches = np.stack(mask_list)
+
+        if save_data:
+            _f = open(ROOT + "/sind.pkl", "wb")
+            pickle.dump(np.array(self.dataset), _f)
+            _f = open(ROOT + "/sind_padding.pkl", "wb")
+            pickle.dump(np.array(self.padded_batches), _f)
+
+        return self.dataset, self.padded_batches
 
     def labels(
         self,
@@ -191,6 +200,16 @@ class LabelingOracleSINDData(SINDData):
             _f = open(ROOT + "/sind_labels.pkl", "wb")
             pickle.dump(np.array(_labels), _f)
         return np.array(_labels)
+    
+
+    def filter_paddings(self, dataset: np.ndarray, padded_batches: np.ndarray):
+        # Find batches with no padding
+        unpadded_batches = np.all(padded_batches, axis=1)  # True only for batches with all 1s (no padding)
+
+        # Filter the dataset to keep only completely unpadded batches
+        filtered_data = dataset[unpadded_batches]
+    
+        return filtered_data
 
     
 def angle_between_angles(a1: float, a2: float):
