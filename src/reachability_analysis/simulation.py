@@ -154,7 +154,7 @@ def reachability_for_all_modes(
     simulation: bool = False,
     test_cases: dict = None,
     trajectory: np.array = np.array([]),
-    show_plot: bool = True,
+    show_plot: bool = False,
 ):
     """Reachability for all modes
 
@@ -222,7 +222,7 @@ def reachability_for_all_modes(
     visualize_zonotopes(_z, map=ax, show=show_plot, _labels=_labels, title=title)
     return _z, _labels, _b, _z_all
 
-def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict):
+def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict, show_plot: bool = False):
     """
     Run scenario for a specific mode.
     
@@ -250,25 +250,15 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
     _b_ : list
         Baselines per mode.
     """
-    _labels = test_cases.copy()
     _z_ = {}.fromkeys(test_cases)
     [_z_.update({i: []}) for i in _z_.keys()]
     _b_ = []
-    i_max = 2
 
-    for _ in range(0, 20):
-        i = 0
+    for _ in range(0, 3):
         z, l, _b, _z = reachability_for_all_modes(
-            pos=pos, vel=vel, baseline=True, test_cases=test_cases, config=config, trajectory=trajectory
+            pos=pos, vel=vel, baseline=True, test_cases=test_cases, config=config, trajectory=trajectory, show_plot=show_plot
         )
-        while not _z and i < i_max:
-            z, l, _b, _z = reachability_for_all_modes(
-                pos=pos, vel=vel, baseline=True, test_cases=test_cases, config=config, trajectory=trajectory
-            )
-            i += 1
 
-        if i >= i_max:
-            break
         for k, v in _z.items():
             if v:
                 _z_[k].append(v[-1])
@@ -323,9 +313,9 @@ def get_initial_conditions(data: np.ndarray):
     return pos, v
 
 
-def run_scenario(trajectory: np.ndarray, config:dict, labels:list):
+def run_scenario(trajectory: np.ndarray, config:dict, labels:list, show_plot: bool = False):
     pos, v = get_initial_conditions(trajectory)
-    scenario_func(trajectory, pos, v, config, labels)
+    scenario_func(trajectory, pos, v, config, labels, show_plot)
 
 
 def load_config():
