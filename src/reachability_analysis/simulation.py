@@ -40,6 +40,12 @@ COLORS = [
     # [52/255 , 78/255 , 92/255 ], # Position
 ]
 
+TEST_TRAJECTORIES = [
+    'cross_illegal_8_11_1',
+    'crossing_now_7_28_1',
+    'cross_left_8_6_4',
+]
+
 def reachability_for_specific_position_and_mode(
     pos: np.ndarray = np.array([-3.4, 28.3]),
     c: int = 1,
@@ -52,6 +58,7 @@ def reachability_for_specific_position_and_mode(
     d: np.ndarray = None,
     sim: bool = False,
     sind: LabelingOracleSINDData = None,
+    clustering: bool = False,
 ):
     """Get reachable set for a specific position, mode and starting velocity
 
@@ -68,7 +75,7 @@ def reachability_for_specific_position_and_mode(
     _sind_ : LabelingOracleSINDData
     _d : np.ndarray
     """
-    input_len = d.shape[2] # (label_id, trajectory_id, input_len, features)
+    input_len = np.array(d[0]).shape[1] # (label_id, trajectory_id, input_len, features)
     reachability_sets_size = input_len - 1
 
     c_z = pos
@@ -76,10 +83,10 @@ def reachability_for_specific_position_and_mode(
     z = zonotope(c_z, G_z)
     v = vel
     U, X_p, X_m, _ = create_io_state(
-        d, z, v, c, input_len=input_len, drop_equal=True, angle_filter=True
+        d, z, v, c, drop_equal=True, angle_filter=True, clustering = clustering
     )
     process_noise = 0.005
-    _, _, U_traj = split_io_to_trajs(X_p, X_m, U, threshold=5, dropped=True, N=reachability_sets_size)
+    _, _, U_traj = split_io_to_trajs(X_p, X_m, U, threshold=5, dropped=True, N=reachability_sets_size)    
     U_k = input_zonotope(U_traj, N=reachability_sets_size)
     z_w = zonotope(np.array([0, 0]), process_noise * np.ones(shape=(2, 1)))
     M_w = create_M_w(U.shape[1], z_w, disable_progress_bar=sim)
@@ -96,10 +103,10 @@ def reachability_for_specific_position_and_mode(
             d,
             z,
             v,
-            [0, 1, 2, 3, 4, 5, 6],
-            input_len=input_len,
+            list(set(d.keys())),
             drop_equal=True,
             angle_filter=False,
+            clustering = clustering
         )
         _, _, U_all_traj = split_io_to_trajs(
             X_p_all, X_m_all, U_all, threshold=5, dropped=True, N=reachability_sets_size
@@ -175,47 +182,52 @@ def reachability_for_all_modes(
 
     for i,( key, _label) in enumerate(test_cases.items()):
         _sind_, d_, _, mapping = get_data(_load=True, config=config, test_case=_label)
+        clustering = False
         _mode = mapping[key]
         if 'Label:' in _label:
             title = _label.split(": ")[1].replace("_", " ").title()
+        elif 'Cluster:' in _label:
+            clustering = True
+
         if ax is None:
             ax = _sind_.map.plot_areas()
             x0, y0, x1, y1 = trajectory[0, :, 0], trajectory[0, :, 1], trajectory[1,:-1, 0], trajectory[1, :-1, 1]
             ax.plot(x0, y0, c=COLORS[3], label='Past Trajectory', markersize=2)
             ax.plot(x1, y1, c=COLORS[4], label='Upcoming Trajectory', markersize=2)
 
-        try:
-            if baseline:
-                baseline = True if not _b else False
+        # try:
+        if baseline:
+            baseline = True if not _b else False
 
-            _, _zonos, R_all, _ = reachability_for_specific_position_and_mode(
-                pos,
-                _mode,
-                vel,
-                _baseline=baseline,
-                _show_plot=False,
-                _ax=ax,
-                _suppress_prints=True,
-                d=d_,
-                sim=simulation,
-                sind=_sind_,
-            )
-            if not baseline:
-                R, z = _zonos
-            else:
-                R_base, R, z = _zonos
-                _b.append(R_base)
+        _, _zonos, R_all, _ = reachability_for_specific_position_and_mode(
+            pos,
+            _mode,
+            vel,
+            _baseline=baseline,
+            _show_plot=False,
+            _ax=ax,
+            _suppress_prints=True,
+            d=d_,
+            sim=simulation,
+            sind=_sind_,
+            clustering = clustering
+        )
+        if not baseline:
+            R, z = _zonos
+        else:
+            R_base, R, z = _zonos
+            _b.append(R_base)
 
-            R.color = COLORS[i]
-            _z.append(R)
-            _ids.append(_mode)
-            _z_all.update({key: R_all})
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            pass
+        R.color = COLORS[i]
+        _z.append(R)
+        _ids.append(_mode)
+        _z_all.update({key: R_all})
+        # except Exception as e:
+        #     print(f"An error occurred: {e}, clustering: {clustering}")
+        #     pass
     if z:
         _z.append(z)
-    _labels.append("Current Position")
+        _labels.append("Current Position")
     if _b:
         _labels.insert(0, "Baseline")
         _z.insert(0, _b[0])
@@ -254,7 +266,7 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
     [_z_.update({i: []}) for i in _z_.keys()]
     _b_ = []
 
-    for _ in range(0, 3):
+    for _ in range(0, 20):
         z, l, _b, _z = reachability_for_all_modes(
             pos=pos, vel=vel, baseline=True, test_cases=test_cases, config=config, trajectory=trajectory, show_plot=show_plot
         )
@@ -265,7 +277,6 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
 
         _b_.append(_b[-1])
     _f = open(ROOT_RESOURCES + f"/scenario.pkl", "wb")
-    print([z, l, _z, _b, _z_, _b_])
     pickle.dump([z, l, _z, _b, _z_, _b_], _f)
     _f.close()
 
@@ -291,7 +302,7 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
 
     data = _sind.filter_paddings(data, padded_batches)
     labels = _sind.filter_paddings(labels, padded_batches)
-    data, labels = structure_input_data(data, labels)
+    if 'Cluster' not in test_case: data, labels = structure_input_data(data, labels)
 
     size = len(set(labels))
     mapping = {i: i for i in range(size)}
@@ -313,7 +324,7 @@ def get_initial_conditions(data: np.ndarray):
     return pos, v
 
 
-def run_scenario(trajectory: np.ndarray, config:dict, labels:list, show_plot: bool = False):
+def run_scenario(trajectory: np.ndarray, config: dict, labels: list, show_plot: bool = False):
     pos, v = get_initial_conditions(trajectory)
     scenario_func(trajectory, pos, v, config, labels, show_plot)
 
@@ -395,11 +406,12 @@ def get_test_clsuter(config, test_data):
 if __name__ == "__main__":
     config = load_config()
     config_test = config.copy()
-    config_test['data_dir'] = ROOT_RESOURCES + '/test'
+    for test_name in TEST_TRAJECTORIES:
+        config_test['data_dir'] = ROOT_RESOURCES + f'/test/{test_name}'
 
-    trajectory, l, test_labeling_oracle = get_test_label(config_test)
-    c = get_test_clsuter(config_test, test_labeling_oracle)
-    test_cases = {l: f'Label: {REVERSED_LABELS[l]}', c: f'Cluster: {c}'}
+        trajectory, l, test_labeling_oracle = get_test_label(config_test)
+        c = get_test_clsuter(config_test, test_labeling_oracle)
+        test_cases = {l: f'Label: {REVERSED_LABELS[l]}', c: f'Cluster: {c}'}
 
-    print(test_cases)
-    run_scenario(trajectory=trajectory, config=config, labels=test_cases)
+        print(test_cases)
+        run_scenario(trajectory=trajectory, config=config, labels=test_cases, show_plot=True)

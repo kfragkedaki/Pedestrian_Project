@@ -198,6 +198,7 @@ def input_zonotope(U: List[np.ndarray], N: int = 30, gamma: str = "max") -> List
     else:
         raise ValueError
     U_k = []
+
     for i in range(0, N):
         z = zonotope(c_z=np.array([vx_mean[i], vy_mean[i]]), G_z=np.array(
             [[vx_std[i], 0], [0, vy_std[i]]]))
