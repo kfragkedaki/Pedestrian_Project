@@ -277,7 +277,8 @@ def reduce(z: pp.zonotope, order: int):
 
 
 def visualize_zonotopes(z: Union[List[pp.zonotope], List[np.ndarray]], map: Union[SinDMap, plt.Axes] = None, show: bool = False,
-                        scale_axes: bool = False, plot_vertices: bool = True, _labels: list = None, _markers: list = None, title: str = "Zonotope visualization") -> plt.Axes:
+                        scale_axes: bool = False, plot_vertices: bool = True, _labels: list = None, _markers: list = None, 
+                        save_plot: str = None, title: str = "Zonotope visualization") -> plt.Axes:
     """ Visualize zonotopes
 
         Parameters:
@@ -302,6 +303,10 @@ def visualize_zonotopes(z: Union[List[pp.zonotope], List[np.ndarray]], map: Unio
         
     visualize(z, ax=map_ax, title=title, scale_axes=scale_axes,
               show_vertices=plot_vertices, _labels=_labels, markers=_markers)
+    
+    if save_plot is not None:
+        plt.savefig(f"{save_plot}.png",  dpi=300, bbox_inches='tight')
+        
     if show:
         plt.tight_layout()
         plt.show()

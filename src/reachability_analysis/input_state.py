@@ -56,6 +56,31 @@ def structure_input_data(data: np.ndarray, labels: np.ndarray):
         new_l = [*new_l, *[_l] * _min_len]
     return np.array(new_d), np.array(new_l)
 
+def structure_input_data_for_clusters(data: np.ndarray, labels: np.ndarray, max_data: int = 100):
+    """Drops random trajectories such that the data of a class are not 
+    too may for calculating the inclussion accuracy
+    Parameters:
+    -----------
+    data : np.ndarray
+        The chunks from the dataset
+    labels: np.ndarray
+        The true labels for the data
+    """
+    _d = {}.fromkeys(labels)
+    [_d.update({i: []}) for i in _d.keys()]
+    [_d[_l].append(data[i]) for i, _l in enumerate(labels)]
+    new_d = []
+    new_l = []
+    for _l, _v in _d.items():
+        _v = np.array(_v)
+        if len(_v) > max_data:
+            _ids = np.random.randint(0, len(_v), size=max_data)
+        else:
+            _ids = range(len(_v)) 
+
+        new_d = [*new_d, *_v[_ids]]
+        new_l = [*new_l, *[_l] * len(_ids)]
+    return np.array(new_d), np.array(new_l)
 
 def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, classification: Union[int, List[int]], drop_equal: bool = True, angle_filter: bool = True, clustering: bool = False) -> List[np.ndarray]:
     """ Function to create D = (X-, X+, U-) in the reachability algorithm

@@ -40,7 +40,7 @@ class LabelingOracleSINDData(SINDData):
         mask_list = []
         for _, group in self.all_df.groupby('track_id'):
             # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
-            data = group[self.feature_names].to_numpy()  
+            data = group[self.feature_names].to_numpy()
             # Chunking and padding
             chunks = [data[i:i + self.config["data_chunk_len"]] for i in range(0, len(data), self.config["data_chunk_len"])]
             

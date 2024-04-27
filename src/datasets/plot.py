@@ -277,7 +277,7 @@ class SinDMap:
             ax2.scatter(x[0], y[0], c="green", s=size_points)
             ax2.scatter(x[-1], y[-1], c="red", s=size_points)
             
-        ax2.legend(title="Cluster", bbox_to_anchor=(1.23, 1), loc='upper right')
+        ax2.legend(title="Cluster", bbox_to_anchor=(1.23, 1), loc='upper left')
         ax1.set_title("Velocity profile of trajectories")
         ax3.set_title("Acceleration profile of trajectories")
 
