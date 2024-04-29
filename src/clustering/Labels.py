@@ -28,10 +28,11 @@ def label_trajectories(data_original: np.array, padding_masks: np.array, cluster
     clusters_per_label = {label: {} for label in unique_labels}
 
     for label in unique_labels:
-        for index, row in data_original[labels == label].iterrows():
-            trajectories[label][index] = row.values.reshape(-1, 6)
-            padding_per_label[label][index] = padding_masks[index]
-            clusters_per_label[label][index] = clusters[index]
+        feature_df = data_original[labels == label]
+        padding_per_label[label] = padding_masks[labels == label]
+        clusters_per_label[label] = clusters[labels == label]
+        for i, (index, row) in enumerate(feature_df.iterrows()):
+            trajectories[label][i] = row.values.reshape(-1, 6)
 
     return trajectories, padding_per_label, clusters_per_label
 
@@ -179,7 +180,7 @@ def plot_dual_pca_3d(data_cluster1, data_cluster2, n_components=3, figsize=(14, 
     plt.show()
 
 
-def run_labels(config: dict, remove_noise: bool = True, show_clusters: bool = False, show_labels: bool = True, show_labeled_clusters: bool = True):
+def run_labels(config: dict, remove_noise: bool = True, show_clusters: bool = False, show_labels: bool = False, show_labeled_clusters: bool = True):
     clusters, embeddings, target, padding_masks = run_clusters(config, load_embeddings=True, load_clusters=True, show_clusters=show_clusters)
     COLOR_PALETTE = get_color_palette(len(set(clusters)))
 
@@ -194,9 +195,7 @@ def run_labels(config: dict, remove_noise: bool = True, show_clusters: bool = Fa
         padding_masks = padding_masks[clusters != -1]
         clusters = clusters[clusters != -1]
 
-    print(labels.shape, labels)
     trajectories, padding_per_label, clusters_per_label = label_trajectories(df_target, padding_masks, clusters, labels)
-    
     if show_labels: plot_trajectories_per_label(labeling_oracle=labeling_oracle, trajectories=trajectories, padding_masked=padding_per_label)
     if show_labeled_clusters: 
         plot_trajectories_per_label_color_clusters(labeling_oracle, trajectories=trajectories, padding_masked=padding_per_label, clusters=clusters_per_label, COLOR_PALETTE=COLOR_PALETTE)

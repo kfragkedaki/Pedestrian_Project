@@ -109,8 +109,8 @@ def load_config(folder='experiments', model_file='SINDDataset_pretrained_2024-04
     with open(f'{folder}/{model_file}/configuration.json') as f:
         config = json.load(f)
         config['save_dir'] = ROOT + f'/{folder}/' + config['save_dir'].split('/', index)[-1]
-        config['output_dir'] = ROOT + f'/{folder}/' + config['output_dir'].split('/', index)[-1]  + '/eval5'
-        config['tensorboard_dir'] = ROOT + f'/{folder}/' + config['tensorboard_dir'].split('/', index)[-1] + '/eval5'
+        config['output_dir'] = ROOT + f'/{folder}/' + config['output_dir'].split('/', index)[-1]  + '/eval10'
+        config['tensorboard_dir'] = ROOT + f'/{folder}/' + config['tensorboard_dir'].split('/', index)[-1] + '/eval10'
         config['data_dir'] = ROOT + '/' + config['data_dir'].split('/', index_data)[-1]
         config['load_model'] = config['save_dir'] +'/model_best.pth'
         config['eval_only'] = True
