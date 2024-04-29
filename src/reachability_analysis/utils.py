@@ -5,7 +5,7 @@ import os
 
 ROOT = os.getcwd()
 
-def load_data(file: str = "sind.pkl") -> np.ndarray:
+def load_data(filename: str = "sind.pkl", filepath: str = ROOT + "/resources/") -> np.ndarray:
     """Load previously pickled data
 
     Parameters:
@@ -13,5 +13,5 @@ def load_data(file: str = "sind.pkl") -> np.ndarray:
     file : str (default = 'sind.pkl')
         File-name of the pickled file.
     """
-    _f = open(ROOT + "/resources/" + file, "rb")
+    _f = open(filepath + filename, "rb")
     return pickle.load(_f)

@@ -16,7 +16,7 @@ from src.utils.model_helpers import (
     get_optimizer,
     EarlyStopping,
 )
-from src.model.encoder import model_factory
+from src.transformer_model.encoder import model_factory
 
 from ray import train as tune
 from src.utils.hyperparemer_tuning_config import hyperparameter_config

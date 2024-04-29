@@ -5,16 +5,16 @@ import pickle
 from tqdm import tqdm
 from copy import deepcopy
 from src.reachability_analysis.operations import is_inside
-from src.reachability_analysis.labeling_oracle import LabelingOracleSINDData, LABELS
-from src.reachability_analysis.utils import load_data
-from src.reachability_analysis.input_state import separate_data_to_class, structure_input_data, structure_input_data_for_clusters
-from src.reachability_analysis.simulation import reachability_for_all_modes, get_test_label, get_test_clsuter, load_config
+from src.reachability_analysis.labeling_oracle import LABELS
+from src.reachability_analysis.simulation import reachability_for_all_modes, get_test_label, get_test_config
+from src.clustering.run import get_cluster, load_config
+
 import pandas as pd
 import matplotlib.ticker as tck
 
 REVERSED_LABELS = {value: key for key, value in LABELS.items()}
 
-ROOT = os.getcwd() + "/resources"
+ROOT_TEST = os.getcwd() + "/resources/test/"
 DATASET = "8_02_1"
 RA_PATH = "/SinD/reachable_sets.pkl"
 RAB_PATH = "/SinD/reachable_base_sets.pkl"
@@ -30,7 +30,7 @@ def load_data_for_simulation(
     -----------
     name : str (default = 'Ped_smoothed_tracks.csv')
     """
-    _path = "/".join([ROOT, DATASET, name])
+    _path = "/".join([ROOT_TEST, DATASET, name])
     _data = pd.read_csv(_path)
     _last_frame = _data["frame_id"].max() + 1
     ped_data_for_RA = {}
@@ -124,7 +124,7 @@ def generate_input_for_sim(
                         )
         return _concat_data
     else:
-        _file = open(ROOT + "/sim_dict.json", "rb")
+        _file = open(ROOT_TEST + "/sim_dict.json", "rb")
         _new_data = pickle.load(_file)
         _file.close()
     return _new_data
@@ -152,8 +152,8 @@ def _simulation(
     _data, _RA_data, _last_frame = load_data_for_simulation(
         input_len=input_len, load_data=False
     )
-    config_test = config.copy()
-    test_labeling_oracle = LabelingOracleSINDData(config_test)
+    test_labeling_oracle, config_test = get_test_config(config, test_name=DATASET)
+
     if not load_data:
         RA_l = {}.fromkeys(list(range(0, _last_frame)))
         [RA_l.update({i: {}}) for i in RA_l.keys()]
@@ -166,19 +166,19 @@ def _simulation(
             _RA = _RA_data[frame]
             for _ped_id, state in _data[frame].items():
                 if _ped_id in _RA:
+                    print(f"Pedestrian: {_ped_id}")
                     pos = np.array([state["x"], state["y"]])
                     vel = np.array([state["vx"], state["vy"]])
                     _chunk = pd.DataFrame(_RA[_ped_id])
                     _chunk['track_id'] = 0
+
                     test_labeling_oracle.all_df = _chunk
                     test_labeling_oracle.feature_df = _chunk.set_index("track_id")
                     trajectory, l = get_test_label(test_labeling_oracle)
-                    print(_ped_id)
-                    print("First: ", trajectory[0, 0], pos, trajectory.shape)
-                    print("Last:", trajectory[0, -1], pos, trajectory.shape)
-                    c = get_test_clsuter(config_test, test_labeling_oracle)
+                    c = get_cluster(config_test, test_labeling_oracle)
+
                     test_cases = {f'l_{l}': f'Label: {REVERSED_LABELS[l]}', f'c_{c}': f'Cluster: {c}'}
-                    print(test_cases)
+                    print(f"Test_cases: {test_cases}")
                     _, _, _b_all, _z_all = reachability_for_all_modes(
                         pos, vel, True, config=config, test_cases=test_cases, show_plot=True, trajectory=trajectory
                     )
@@ -188,14 +188,14 @@ def _simulation(
                     if _baseline:
                         RA_b[frame].update({_ped_id: _b_all})
             if frame % checkpoint and frame != 0:
-                _f = open(ROOT + "/SinD/" + DATASET + "_accuracy.pkl", "wb")
+                _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "wb")
                 pickle.dump([RA_l, RA_c, RA_b, (frame, _last_frame)], _f)
                 _f.close()
-        _f = open(ROOT + "/SinD/" + DATASET + "_accuracy.pkl", "wb")
+        _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "wb")
         pickle.dump([RA_l, RA_c, RA_b, (frame, _last_frame)], _f)
         _f.close()
     else:
-        _f = open(ROOT + "/SinD/" + DATASET + "_accuracy.pkl", "rb")
+        _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "rb")
         RA_l, RA_c, RA_b, _frames = pickle.load(_f)
         _f.close()
 
@@ -246,9 +246,9 @@ def _simulation(
     RA_b_acc = RA_b_acc[0 : ids_l[0]]
 
     print(f"Labeling Acurracy: {RA_l_acc / _i_l}, Clustering Accuracy: {print(RA_c_acc / _i_c)}, Baseline Accuracy: {RA_b_acc/_i_l}")
-    _f_l = open(ROOT + "/state_inclusion_acc_label.pkl", "wb")
-    _f_c = open(ROOT + "/state_inclusion_acc_clsuter.pkl", "wb")
-    _f_b = open(ROOT + "/state_inclusion_acc_baseline.pkl", "wb")
+    _f_l = open(ROOT_TEST + "/state_inclusion_acc_label.pkl", "wb")
+    _f_c = open(ROOT_TEST + "/state_inclusion_acc_clsuter.pkl", "wb")
+    _f_b = open(ROOT_TEST + "/state_inclusion_acc_baseline.pkl", "wb")
 
     pickle.dump(RA_c_acc / _i_c * 100, _f_c)
     pickle.dump(RA_l_acc / _i_l * 100, _f_l)
@@ -265,12 +265,12 @@ def visualize_state_inclusion_acc(
     side: str = "right",
 ):
     if baseline:
-        _f_b = open(ROOT + "/state_inclusion_acc_baseline.pkl", "rb")
+        _f_b = open(ROOT_TEST + "/state_inclusion_acc_baseline.pkl", "rb")
         RA_b_acc = pickle.load(_f_b)
         _f_b.close()
 
-    _f_l = open(ROOT + "/state_inclusion_acc_label.pkl", "rb")
-    _f_c = open(ROOT + "/state_inclusion_acc_clsuter.pkl", "rb")
+    _f_l = open(ROOT_TEST + "/state_inclusion_acc_label.pkl", "rb")
+    _f_c = open(ROOT_TEST + "/state_inclusion_acc_clsuter.pkl", "rb")
     RA_l_acc = pickle.load(_f_l)
     RA_c_acc = pickle.load(_f_c)
     _f_l.close()

@@ -20,11 +20,7 @@ from src.reachability_analysis.input_state import create_io_state, separate_data
 from src.reachability_analysis.zonotope import zonotope
 from src.reachability_analysis.utils import load_data
 
-from src.utils.load_data import load_task_datasets
-from src.transformer_model.model import create_model, evaluate
-from torch.utils.data import DataLoader
-from annoy import AnnoyIndex
-import logging
+from src.clustering.run import get_cluster, load_config
 
 ROOT_PROJECT = os.getcwd()
 ROOT_RESOURCES = os.getcwd() + "/resources"
@@ -163,6 +159,7 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
+    load_data: bool = False
 ):
     """Reachability for all modes
 
@@ -183,7 +180,7 @@ def reachability_for_all_modes(
 
     for i,( key, _label) in enumerate(test_cases.items()):
         key = int(key.split('_')[1])
-        _sind_, d_, _, mapping = get_data(_load=True, config=config, test_case=(key, _label))
+        _sind_, d_, _, mapping = get_data(_load=load_data, config=config, test_case=(key, _label))
         clustering = False
         _mode = mapping[key]
         if 'Label:' in _label:
@@ -201,7 +198,7 @@ def reachability_for_all_modes(
                     x1, y1 = trajectory[1,:-1, 0], trajectory[1, :-1, 1]
                     ax.plot(x1, y1, c=COLORS[4], label='Upcoming Trajectory', markersize=2)
                 else:
-                    # In this case we have the current location and want to predict the future
+                    # In this case, we have the current location and want to predict the future
                     # calculate inclusion accuracy
                     x1, y1 = trajectory[0, :-1, 0], trajectory[0, :-1, 1]
                     ax.plot(x1, y1, c=COLORS[4], label='Upcoming Trajectory', markersize=2)
@@ -279,7 +276,7 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
     
     for i in range(0, 1):
         save_plot_ = None
-        if save_plot is not None: save_plot_ = save_plot + f'/{i}.png'
+        if save_plot is not None: save_plot_ = save_plot + f'/{i}'
         z, l, _b, _z = reachability_for_all_modes(
             pos=pos, vel=vel, baseline=True, test_cases=test_cases, config=config, trajectory=trajectory, show_plot=show_plot, save_plot=save_plot_
         )
@@ -300,11 +297,23 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
     if not _sind:
         _sind = LabelingOracleSINDData(config)
 
+    if os.path.exists(os.path.join(config['output_dir'], 'clusters')):
+        clusters_root = os.path.join(config['output_dir'], 'clusters')
+    else:
+        clusters_root = ROOT_RESOURCES
+
     if 'Cluster' in test_case[1]:
         # if _load:
-        data = load_data('data_original_2024-04-27 01:52:06.795289.pkl')
-        padded_batches = load_data('data_padding_2024-04-27 01:52:06.795289.pkl')
-        labels = load_data('cluster_labels_2024-04-27 01:52:06.795289.pkl')
+        data = load_data(filename='/data_original.pkl', filepath=clusters_root)
+        padded_batches =  load_data(filename='/data_padding.pkl', filepath=clusters_root)
+        labels = load_data(filename= f'/cluster_labels{"_original" if config["original_data"] else ""}.pkl', filepath=clusters_root)
+        # else:
+        #     # cluster and get labels again
+        #     run_clusters(config, load_embeddings=False, show_clusters=False)
+        #     # test_labeling_oracle = get_test_config(config, test_name=test_name)
+        #     c = get_cluster(config, data_oracle=test_labeling_oracle)
+        #     data, padded_batches = load_data('data_original.pkl'), load_data('data_padding.pkl')
+        #     labels = load_data(os.path.join(clusters_root, f'cluster_labels{"_original" if config["original_data"] else ""}.pkl.pkl'))
     else:
         if _load:
             data = load_data()
@@ -316,12 +325,12 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
 
     data = _sind.filter_paddings(data, padded_batches)
     labels = _sind.filter_paddings(labels, padded_batches)
-    if 'Cluster' not in test_case[1]:
+    if 'Cluster'  in test_case[1]:
+        data, labels = structure_input_data_for_clusters(data, labels, max_data=250)
+    else:
         data, labels = structure_input_data(data, labels)
-    elif 'Cluster' in test_case[1]:
-        if len(data[labels == test_case[0]]) > 250:
-            data, labels = structure_input_data_for_clusters(data, labels, max_data=250)
 
+    print(test_case, len(data[labels == test_case[0]]), data.shape, labels.shape)
     size = len(set(labels))
     mapping = {i: i for i in range(size)}
     if -1 in labels:
@@ -344,32 +353,7 @@ def get_initial_conditions(data: np.ndarray):
 
 def run_scenario(trajectory: np.ndarray, config: dict, labels: list, show_plot: bool = False, save_plot: str = None):
     pos, v = get_initial_conditions(trajectory)
-    scenario_func(trajectory, pos, v, config, labels, show_plot, save_plot=save_plot)
-
-
-def load_config():
-    # experiments/SINDDataset_pretrained_2024-04-19_22-22-05_bvW/checkpoints/model_best.pth
-    model_file = 'SINDDataset_pretrained_2024-04-27_00-11-45_KIP'
- 
-    index = 2
-    index_data = 0
-    folder = 'experiments'
-
-    with open(f'{folder}/{model_file}/configuration.json') as f:
-        config = json.load(f)
-        config['save_dir'] = ROOT_PROJECT + f'/{folder}/' + config['save_dir'].split('/', index)[-1]
-        config['output_dir'] = ROOT_PROJECT + f'/{folder}/' + config['output_dir'].split('/', index)[-1] + '/eval'
-        config['tensorboard_dir'] = ROOT_PROJECT + f'/{folder}/' + config['tensorboard_dir'].split('/', index)[-1] + '/eval'
-        config['data_dir'] = ROOT_PROJECT + '/' + config['data_dir'].split('/', index_data)[-1]
-        config['load_model'] = config['save_dir'] + '/model_best.pth'
-        config['eval_only'] = True
-        config['save_embeddings'] = True
-        config['val_ratio'] = 1.0
-        config['dropout'] = 0.0  # No dropout during evaluation
-        config['hyperparameter_tuning'] = False
-        config["n_proc"] = 1
-
-    return config
+    scenario_func(trajectory, pos, v, config, labels, show_plot=show_plot, save_plot=save_plot)
 
 
 def get_test_label(test_labeling_oracle):
@@ -379,57 +363,21 @@ def get_test_label(test_labeling_oracle):
     return trajectory, label[0]
 
 
-def get_test_clsuter(config, test_data):
-    logging.basicConfig(
-        format="%(asctime)s | %(levelname)s : %(message)s", level=logging.INFO
-    )
-    logger = logging.getLogger(__name__)
+def get_test_config(config: dict, test_name: str = ""):
+    config_test = config.copy()
+    config_test['data_dir'] = ROOT_RESOURCES + f'/test/{test_name}'
+    test_labeling_oracle = LabelingOracleSINDData(config_test)
 
-    # Initialize data generators
-    task_dataset_class, collate_fn = load_task_datasets(config)
-
-    # Dataloaders
-    val_dataset = task_dataset_class(test_data.feature_df, [0])
-
-    val_loader = DataLoader(
-        dataset=val_dataset,
-        batch_size=config["batch_size"],
-        shuffle=False,
-        num_workers=config["num_workers"],
-        pin_memory=True,
-        collate_fn=lambda x: collate_fn(x, max_len=test_data.max_seq_len),
-    )
-    #  Create model, optimizer, and evaluators
-    model, optimizer, trainer, val_evaluator, start_epoch = create_model(
-        config, None, val_loader, test_data, logger, device='cpu'
-    )
-
-    # Perform the evaluation
-    aggr_metrics, embedding_data = evaluate(val_evaluator, config=config, save_embeddings=True)
-
-    # Access the embeddings and other data
-    embeddings = embedding_data["embeddings"][0][0]
-
-    f = embeddings.mean(0).shape[0] # Number of features
-    annoy_index = AnnoyIndex(f, 'euclidean')
-    annoy_index.load('annoy_index.ann')
-
-    index = annoy_index.get_nns_by_vector(embeddings.mean(0), 1)
-    labels = load_data('cluster_labels_2024-04-27 01:52:06.795289.pkl')
-    predicted_cluster = labels[index][0]
-
-    return predicted_cluster
-
+    return test_labeling_oracle, config_test
 
 if __name__ == "__main__":
     config = load_config()
-    config_test = config.copy()
+
     for test_name in TEST_TRAJECTORIES:
-        config_test['data_dir'] = ROOT_RESOURCES + f'/test/{test_name}'
-        test_labeling_oracle = LabelingOracleSINDData(config_test)
+        test_labeling_oracle, config_test = get_test_config(config, test_name=test_name)
 
         trajectory, l = get_test_label(test_labeling_oracle)
-        c = get_test_clsuter(config_test, test_labeling_oracle)
+        c = get_cluster(config, data_oracle=test_labeling_oracle)
         test_cases = {f'l_{l}': f'Label: {REVERSED_LABELS[l]}', f'c_{c}': f'Cluster: {c}'}
 
         print(test_cases)

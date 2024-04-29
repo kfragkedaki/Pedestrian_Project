@@ -8,7 +8,7 @@ import logging
 
 from src.options import Options
 from src.utils import setup, load_data, register_record, readable_time
-from src.model.model import create_model, evaluate, train
+from src.transformer_model.model import create_model, evaluate, train
 
 ROOT = os.getcwd()
 
