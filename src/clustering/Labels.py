@@ -135,7 +135,7 @@ def plot_dual_tsne_3d(data_cluster1, data_cluster2, n_components=3, figsize=(14,
     plt.show()
 
 
-def plot_dual_pca_3d(data_cluster1, data_cluster2, n_components=3, figsize=(14, 6)):
+def plot_dual_pca_3d(data_cluster1, data_cluster2, n_components=3, figsize=(14, 6), file:str ="pca_plot"):
     """
     Applies PCA and plots the results in 3D for two datasets side by side.
 
@@ -164,19 +164,20 @@ def plot_dual_pca_3d(data_cluster1, data_cluster2, n_components=3, figsize=(14, 
     # Plotting for the first dataset
     ax1 = fig.add_subplot(121, projection='3d')
     scatter1 = ax1.scatter(data1_transformed[:, 0], data1_transformed[:, 1], data1_transformed[:, 2], c=clusters1, cmap=ListedColormap(COLOR_PALETTE), edgecolor='k')
-    legend1 = ax1.legend(*scatter1.legend_elements(), loc='upper right', title="Clusters")
-    ax1.add_artist(legend1)
-    ax1.set_title("PCA of Original Data")
+    # legend1 = ax1.legend(*scatter1.legend_elements(), loc='upper right', title="Clusters")
+    # ax1.add_artist(legend1)
+    ax1.set_title("PCA of Original Data", fontweight="bold", fontsize=14)
 
     # Plotting for the second dataset
     ax2 = fig.add_subplot(122, projection='3d')
     scatter2 = ax2.scatter(data2_transformed[:, 0], data2_transformed[:, 1], data2_transformed[:, 2], c=clusters2, cmap=ListedColormap(COLOR_PALETTE), edgecolor='k')
-    legend2 = ax2.legend(*scatter2.legend_elements(), loc='upper right', title="Clusters")
-    ax2.add_artist(legend2)
-    ax2.set_title("PCA of Embeddings")
-
+    # legend2 = ax2.legend(*scatter2.legend_elements(), loc='upper right', title="Clusters")
+    # ax2.add_artist(legend2)
+    ax2.set_title("PCA of Embeddings",fontweight="bold", fontsize=14)
+    plt.subplots_adjust(wspace=0) 
     # Display the plot
-    plt.tight_layout()
+    # plt.tight_layout()
+    plt.savefig(f"{file}.png",  dpi=300, bbox_inches='tight')
     plt.show()
 
 

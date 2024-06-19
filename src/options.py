@@ -109,6 +109,7 @@ class Options(object):
         self.parser.add_argument(
             "--pattern",
             type=str,
+            default='Ped_smoothed_tracks',
             help="Regex pattern used to select files contained in `data_dir`. If None, all data will be used.",
         )
         self.parser.add_argument(
@@ -120,7 +121,7 @@ class Options(object):
         self.parser.add_argument(
             "--data_chunk_len",
             type=int,
-            default=90,
+            default=50,
             help="""Used to segment the data samples into chunks. Determines maximum input sequence length 
                                  (size of transformer layers). To use the maximum possible length in the data 
                                  (cannot exceed 350), set to 0.""",
@@ -142,13 +143,13 @@ class Options(object):
         self.parser.add_argument(
             "--mean_mask_length",
             type=float,
-            default=3,
+            default=15,
             help="Imputation: the desired mean length of masked segments. Used only when `mask_distribution` is 'geometric'.",
         )
         self.parser.add_argument(
             "--mask_mode",
             choices={"separate", "concurrent"},
-            default="separate",
+            default="concurrent",
             help=(
                 "Imputation: whether each variable should be masked separately "
                 "or all variables at a certain positions should be masked concurrently"
@@ -157,7 +158,7 @@ class Options(object):
         self.parser.add_argument(
             "--mask_distribution",
             choices={"geometric", "bernoulli"},
-            default="geometric",
+            default="bernoulli",
             help=(
                 "Imputation: whether each mask sequence element is sampled independently at random"
                 "or whether sampling follows a markov chain (stateful), resulting in "
@@ -208,7 +209,7 @@ class Options(object):
             default=256,
             help="Number of instances per batch during training",
         )
-        self.parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
+        self.parser.add_argument("--lr", type=float, default= 0.0005011190688592435, help="learning rate")
         self.parser.add_argument(
             "--lr_step",
             type=int,
@@ -225,13 +226,13 @@ class Options(object):
         self.parser.add_argument(
             "--optimizer",
             choices={"Adam", "RAdam"},  # "NAdam", "Adamax"
-            default="RAdam",
+            default="Adam",
             help="Optimizer",
         )
         self.parser.add_argument(
             "--l2_reg",
             type=float,
-            default=0.0,
+            default=0.05,
             help="L2 weight regularization parameter. Set to 0 for no regularization.",
         )
         self.parser.add_argument(
@@ -293,7 +294,7 @@ class Options(object):
         self.parser.add_argument(
             "--activation",
             choices={"relu", "gelu"},
-            default="gelu",
+            default="relu",
             help="Activation to be used in transformer encoder",
         )
         self.parser.add_argument(

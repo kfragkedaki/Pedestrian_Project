@@ -225,7 +225,7 @@ def _simulation(
 
                         # Labels
                         if RA_l[frame]:
-                            zono = _z_l_all[-1]
+                            zono = _z_l_all[k]
                             _inside = int(is_inside(zono, pos_k))
                             RA_l_acc[k] += _inside
                             i_l[k] += 1
@@ -259,11 +259,18 @@ def _simulation(
     _f_b.close()
 
 
+COLORS = [
+    [60 / 255, 159 / 255, 69 / 255, 1],  # Behavioral Zonotope
+    [32 / 255, 102 / 255, 168 / 255, 1],  # Cluster Zonotope
+    [0.55, 0.14, 0.14, 1]  # Baseline Zonotope]
+]
+
 def visualize_state_inclusion_acc(
     baseline: bool = True,
     convergence: bool = True,
     side: str = "right",
 ):
+    # plt.rcParams.update({'font.size': 14})
     if baseline:
         _f_b = open(ROOT_TEST + "/state_inclusion_acc_baseline.pkl", "rb")
         RA_b_acc = pickle.load(_f_b)
@@ -277,44 +284,44 @@ def visualize_state_inclusion_acc(
     _f_c.close()
 
     fig, ax = plt.subplots()
-    fig.set_size_inches(10 / 1.5, 4.2 / 1.5)
+    fig.set_size_inches(8 / 1.5, 4.2 / 1.5)
     fig.subplots_adjust(top=0.96, left=0.090, bottom=0.165, right=0.93)
 
     _x = np.array(list(range(1, len(RA_l_acc) + 1))) / 10
-    ax.plot(_x, RA_c_acc, "-", color="blue", label='Clustering')
-    print(RA_c_acc)
-    ax.plot(_x, RA_l_acc, "--", color="green", label='Labeling')
-    print(RA_l_acc)
+    ax.plot(_x, RA_c_acc, "-", color=COLORS[1], label='Clustering')
+    ax.plot(_x, RA_l_acc, "--", color=COLORS[0], label='Labeling')
 
     if baseline:
-        print(RA_b_acc)
-        plt.plot(_x, RA_b_acc, "-.", color="red", label='Baseline')
+        plt.plot(_x, RA_b_acc, "-.", color=COLORS[2], label='Baseline')
 
-    ax.set_ylim([0, 110]), ax.set_xlim([0, 9])
+    ax.set_ylim([0, 110]), ax.set_xlim([0, 5])
     ax.yaxis.set_minor_locator(tck.AutoMinorLocator())
     ax.xaxis.set_minor_locator(tck.AutoMinorLocator())
     ax.minorticks_on()
 
-    ax.set_ylabel("Accuracy [%]")
-    ax.set_xlabel("Time horizon, N [s]")
+    ax.set_ylabel("Accuracy [%]", fontweight="bold", fontsize="14")
+    ax.set_xlabel("Time horizon, N [s]", fontweight="bold", fontsize="14")
     ax.legend()
 
     ax.grid(which="major")
     ax.grid(which="minor", ls="--", linewidth=0.33)
 
+
     if convergence:
         ax2 = ax.twinx()
-        ax2.set_yticks([91], ["91%"])
-        ax2.tick_params(axis="y", colors="green", labelsize=10)
+        ax2.set_yticks([93], ["93%"])
+        ax2.tick_params(axis="y", colors=COLORS[1], labelsize=10)
         ax2.grid(alpha=0.6)
         ax2.set_ylim([0, 110])
         ax2.yaxis.set_ticks_position(side)
         ax3 = ax.twinx()
         ax3.set_yticks([98.7], ["98%"])
-        ax3.tick_params(axis="y", colors="red", labelsize=10)
+        ax3.tick_params(axis="y", colors=COLORS[2], labelsize=10)
         ax3.grid(alpha=0.6)
         ax3.set_ylim([0, 110])
         ax3.yaxis.set_ticks_position(side)
+
+    plt.savefig(ROOT_TEST  +"/accuracy.png", dpi=300, bbox_inches='tight')
     plt.show()
 
 def get_state_inclusion_acc():
@@ -325,7 +332,7 @@ def get_state_inclusion_acc():
     """
     config = load_config()
     _simulation(load_data=False, config=config, _baseline=True)
-    visualize_state_inclusion_acc(baseline=True, convergence=False)
+    visualize_state_inclusion_acc(baseline=True, convergence=True)
 
 
 if __name__ == "__main__":

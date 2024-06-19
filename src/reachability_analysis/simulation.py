@@ -50,7 +50,7 @@ def reachability_for_specific_position_and_mode(
     _show_plot: bool = True,
     _ax: plt.Axes = None,
     _labels: list = None,
-    _suppress_prints: bool = False,
+    _suppress_prints: bool = True,
     d: np.ndarray = None,
     sim: bool = False,
     sind: LabelingOracleSINDData = None,
@@ -137,7 +137,6 @@ def reachability_for_specific_position_and_mode(
 
     if not _ax:
         _ax = sind.map.plot_areas()
-
     if sim:
         ax = visualize_zonotopes(_zonos, map=_ax, show=False, _labels=_labels)
     else:
@@ -159,7 +158,7 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
-    load_data: bool = False
+    load_data: bool = True
 ):
     """Reachability for all modes
 
@@ -190,6 +189,7 @@ def reachability_for_all_modes(
 
         if ax is None:
             ax = _sind_.map.plot_areas()
+
             if trajectory is not None:
                 if trajectory.shape[0] > 1:
                     # test scenarios
@@ -214,7 +214,7 @@ def reachability_for_all_modes(
             _baseline=baseline,
             _show_plot=False,
             _ax=ax,
-            _suppress_prints=True,
+            _suppress_prints=False,
             d=d_,
             sim=simulation,
             sind=_sind_,
@@ -344,7 +344,7 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
 
 def get_initial_conditions(data: np.ndarray):
     chunk = 0 # first chunk
-    point = -1
+    point = -1 # first point
     x, y, vx, vy = data[chunk][point][0], data[chunk][point][1], data[chunk][point][2], data[chunk][point][3]
     pos = np.array([x, y])
     v = np.array([vx, vy])

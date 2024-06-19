@@ -65,6 +65,13 @@ class SinDMap:
             fig, ax = plt.subplots()
             fig.set_size_inches(6.5, 4.13)
             fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
+            im = plt.imread(ROOT + "/intersection.jpg")
+            ax.imshow(im, zorder=-1, alpha=0.5, extent=(-25, 60, -10, 40))
+            # Optionally, set the axes limits to the dimensions of the image
+            # ax.set_xlim(-35, 65)
+            ax.set_xlim(-25, 60)
+
+            ax.set_ylim(-10, 40)
 
         _points = self.get_area("")
         ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct

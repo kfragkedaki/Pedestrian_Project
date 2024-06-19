@@ -119,10 +119,15 @@ class HDBSCANCluster(Clusters):
             
         if show_clusters: self.plot_clusters(self.clusters, remove_noise)
 
-    def load_clusters(self, original_data: bool = False):
+    def load_clusters(self, original_data: bool = False, remove_noise: bool = True,):
         clusters = self.load(f'cluster_labels{"_original" if original_data else ""}.pkl')
         embeddings = self.load('data_embeddings.pkl')
         target = self.load('data_original.pkl')
         padding_masks = self.load('data_padding.pkl')
-        
+
+        if original_data: data = np.ma.masked_array(target, mask=np.broadcast_to(~padding_masks[:, :, None], target.shape)).mean(axis=1).data
+        else: data = np.mean(embeddings, axis=1)
+
+        self.get_silhouette_score(data, clusters, remove_noise)
+
         return clusters, embeddings, target, padding_masks

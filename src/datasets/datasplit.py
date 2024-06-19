@@ -26,7 +26,7 @@ def split_dataset(
     )  # DataSplitter object
 
     # Split train / validation sets -  returns a list of indices *per fold/split*
-    datasplitter.split_validation(n_splits, validation_ratio, random_state=random_seed)
+    datasplitter.split_validation(n_splits, validation_ratio=validation_ratio, random_state=random_seed)
 
     return datasplitter.train_indices[0], datasplitter.val_indices[0]
 

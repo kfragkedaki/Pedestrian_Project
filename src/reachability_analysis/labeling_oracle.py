@@ -210,7 +210,6 @@ class LabelingOracleSINDData(SINDData):
         filtered_data = dataset[unpadded_batches]
     
         return filtered_data
-
     
 def angle_between_angles(a1: float, a2: float):
     """Calculate interior angle between two angles

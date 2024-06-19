@@ -68,7 +68,7 @@ class AnnoyModel(ApproximateNearestNeighbors):
         self.index.build(self.n_trees)
 
     def save_index(self, filename: str = 'annoy_index.ann'):
-        filepath = os.path.join(self.file_root, filename)
+        filepath = os.path.join(self.file_root, "original_" if self.config["original_data"] else "" + filename)
 
         self.index.save(filepath)
 
