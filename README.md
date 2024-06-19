@@ -1,11 +1,9 @@
 # Unsupervised Transformer Model for Time Series Data
 
-This code includes a transformer-based framework for unsupervised representation learning of multivariate time series, inspired by 
-the [paper](https://dl.acm.org/doi/10.1145/3447548.3467401): George Zerveas et al. **A Transformer-based Framework for Multivariate Time Series Representation Learning**, in _Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD '21), August 14-18, 2021_.
-ArXiV version: https://arxiv.org/abs/2010.02803.
+This code includes a transformer-based framework for unsupervised representation learning of multivariate time series, inspired by [Zerveas et al.](https://dl.acm.org/doi/10.1145/3447548.3467401).
 
-The model is trained using the missing value imputation task to create embeddings that potentially extract features from the time series data. 
-These embeddings are later used for additional downstream tasks, such as clustering.
+The model is trained using the missing value imputation task to create embeddings that potentially extract complex features from pedestrian trajectories. 
+These embeddings are subsequently used for clustering to reveal different behaviors. These behavior clusters are combined with data-driven reachability analysis, yielding an end-to-end data-driven approach to predicting the future motion of pedestrians.
 
 
 ## Setup
