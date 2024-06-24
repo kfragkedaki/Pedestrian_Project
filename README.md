@@ -32,7 +32,7 @@ git clone https://github.com/SOTIF-AVLab/SinD.git
 
 ## Run
 
-To see all command options with explanations, run: `python src/main.py --help`
+To see all command options with explanations, run: `python main.py --help`
 
 ### Train
 The downstream task of missing value imputation is used to train the model. The data given are split into training and validation data and the loss metric is used for optimization.

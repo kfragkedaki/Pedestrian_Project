@@ -6,6 +6,14 @@ import pickle
 import json
 import pandas as pd
 import tqdm
+import argparse
+import sys
+
+# Get the absolute path of the directory two levels up
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# Add that directory to sys.path
+sys.path.append(project_dir)
 
 from src.datasets.plot import SinDMap
 from src.reachability_analysis.labeling_oracle import LabelingOracleSINDData, LABELS
@@ -371,7 +379,18 @@ def get_test_config(config: dict, test_name: str = ""):
     return test_labeling_oracle, config_test
 
 if __name__ == "__main__":
-    config = load_config()
+     # Set up argument parsing
+    parser = argparse.ArgumentParser(description='Run clustering script with arguments.')
+    parser.add_argument('--folder', type=str, default='experiments', help='Folder that includes the trained models.')
+    parser.add_argument('--model_file', type=str, default='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', help='The model to create clusters for.')
+    parser.add_argument('--index', type=int, default=2, help='The index number, which indicates the right path to the models\' folder.')
+    parser.add_argument('--index_data', type=int, default=0, help='The index number, which indicates the right path to the data folder.')
+    parser.add_argument('--original_data', type=bool, default=False, help='If the original data should be used for clustering.')
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    config = load_config(folder=args.folder, model_file=args.model_file, index=args.index, index_data=args.index_data, original_data=args.original_data)
 
     for test_name in TEST_TRAJECTORIES:
         test_labeling_oracle, config_test = get_test_config(config, test_name=test_name)
