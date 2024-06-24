@@ -51,7 +51,7 @@ class Options(object):
         )
         self.parser.add_argument(
             "--records_file",
-            default="./records.xls",
+            default="./experiments/records.xls",
             help="Excel file keeping all records of experiments",
         )
 

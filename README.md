@@ -14,7 +14,9 @@ pip install -r requirements.txt
 
 The following commands assume that you have created a new root directory inside the project directory like this: 
 `mkdir experiments`. Inside this already *existing* root directory, each experiment will create a time-stamped output directory containing
-model checkpoints, performance metrics per epoch, the experiment configuration, log files, etc.
+model checkpoints, performance metrics per epoch, the experiment configuration, log files, etc. 
+
+*Python >= 3.9*
 
 ### Get SinD Dataset
 

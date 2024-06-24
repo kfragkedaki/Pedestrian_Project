@@ -1,6 +1,17 @@
 import torch
 import pandas as pd
 import numpy as np
+import argparse
+
+import os
+import sys
+
+# Get the absolute path of the directory two levels up
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# Add that directory to sys.path
+sys.path.append(project_dir)
+
 
 from main import run as run_transformer
 from src.utils.config_setup import create_dirs
@@ -16,7 +27,6 @@ from torch.utils.data import DataLoader
 
 import logging
 import logging
-import os
 import json
 
 ROOT = os.getcwd()
@@ -104,7 +114,7 @@ def plot_data(padding_masks, all_data_original, all_data, all_predictions, confi
     map.plot_single_data(pedestrian_data={batch_id: pd.DataFrame(all_predictions[batch_id], columns=["x", "y", "vx", "vy", "ax", "ay"])})
 
 
-def load_config(folder='experiments', model_file='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', index=2, index_data=0):
+def load_config(folder='experiments', model_file='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', index=2, index_data=0, original_data=False):
 
     with open(f'{folder}/{model_file}/configuration.json') as f:
         config = json.load(f)
@@ -120,7 +130,7 @@ def load_config(folder='experiments', model_file='SINDDataset_pretrained_2024-04
         config['hyperparameter_tuning'] = False
 
     create_dirs([config['output_dir']])
-    config["original_data"] = False
+    config["original_data"] = original_data
     config["remove_noise"] = True
 
     return config
@@ -184,18 +194,19 @@ def run_clusters(config: dict = None, load_embeddings: bool = True, load_cluster
 
     
 if __name__ == '__main__':
-    # model_file = 'SINDDataset_pretrained_2024-03-26_22-16-45_F2y'
-    # index = 6
-    # index_data = 5
-    # folder = 'ray_results_backpack'
-    # Load the configuration
 
-    # model_file = 'SINDDataset_pretrained_2024-04-08_19-13-17_U12'
-    # index = 6
-    # index_data = 5
-    # folder = 'ray_results_original'
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description='Run clustering script with arguments.')
+    parser.add_argument('--folder', type=str, default='experiments', help='Folder that includes the trained models.')
+    parser.add_argument('--model_file', type=str, default='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', help='The model to create clusters for.')
+    parser.add_argument('--index', type=int, default=2, help='The index number, which indicates the right path to the models\' folder.')
+    parser.add_argument('--index_data', type=int, default=0, help='The index number, which indicates the right path to the data folder.')
+    parser.add_argument('--original_data', type=bool, default=False, help='If the original data should be used for clustering.')
 
-    config = load_config(folder='experiments', model_file='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', index=2, index_data=0)
+    # Parse the arguments
+    args = parser.parse_args()
+
+    config = load_config(folder=args.folder, model_file=args.model_file, index=args.index, index_data=args.index_data, original_data=args.original_data)
     run_clusters(config=config, load_embeddings=False, load_clusters=False)
 
     logger.info("Finished Clustering.")
