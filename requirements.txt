@@ -21,3 +21,4 @@ chardet
 charset_normalizer
 requests
 annoy
+pypolycontain
