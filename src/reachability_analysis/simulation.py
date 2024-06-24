@@ -166,7 +166,7 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
-    load_data: bool = True
+    load_data: bool = False
 ):
     """Reachability for all modes
 
