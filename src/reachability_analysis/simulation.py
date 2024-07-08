@@ -166,7 +166,7 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
-    load_data: bool = True
+    load_data: bool = False
 ):
     """Reachability for all modes
 
@@ -249,6 +249,7 @@ def reachability_for_all_modes(
         _z.insert(0, _b[0])
     visualize_zonotopes(_z, map=ax, save_plot=save_plot, show=show_plot, _labels=_labels, title=title)
     return _z, _labels, _b, _z_all
+
 
 def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict, show_plot: bool = False, save_plot: str = None):
     """
@@ -352,7 +353,7 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
 
 def get_initial_conditions(data: np.ndarray):
     chunk = 0 # first chunk
-    point = -1 # first point
+    point = -1 # last point
     x, y, vx, vy = data[chunk][point][0], data[chunk][point][1], data[chunk][point][2], data[chunk][point][3]
     pos = np.array([x, y])
     v = np.array([vx, vy])
@@ -377,6 +378,7 @@ def get_test_config(config: dict, test_name: str = ""):
     test_labeling_oracle = LabelingOracleSINDData(config_test)
 
     return test_labeling_oracle, config_test
+
 
 if __name__ == "__main__":
      # Set up argument parsing

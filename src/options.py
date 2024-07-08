@@ -311,6 +311,12 @@ class Options(object):
             help="Use of Ray for hyperparameter tuning",
         )
 
+        self.parser.add_argument(
+            "--online_data",
+            action="store_false",
+            help="True if using ros messages for evaluation, false otherwise",
+        )
+
     def parse(self, args=None):
 
         args = self.parser.parse_args(args)

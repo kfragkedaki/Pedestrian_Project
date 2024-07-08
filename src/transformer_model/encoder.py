@@ -17,6 +17,7 @@ def model_factory(config, data):
     task = config["task"]
     feat_dim = data.feature_df.shape[1]  # dimensionality of data features
     max_seq_len = data.max_seq_len
+    # TODO Claire
 
     if task == "imputation":
         return TSTransformerEncoder(
