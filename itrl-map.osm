@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="CGImap 0.9.3 (987926 spike-08.openstreetmap.org)" copyright="OpenStreetMap and contributors" attribution="http://www.openstreetmap.org/copyright" license="http://opendatacommons.org/licenses/odbl/1-0/">
+ <bounds minlat="59.3507300" minlon="18.0678300" maxlat="59.3509300" maxlon="18.0683000"/>
+ <node id="415333963" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:44Z" user="Tooga" uid="19038" lat="59.3508654" lon="18.0678889"/>
+ <node id="415333964" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:44Z" user="Tooga" uid="19038" lat="59.3510176" lon="18.0676972"/>
+ <node id="415333965" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:44Z" user="Tooga" uid="19038" lat="59.3511441" lon="18.0680838"/>
+ <node id="415333966" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:44Z" user="Tooga" uid="19038" lat="59.3509920" lon="18.0682755"/>
+ <node id="1605027131" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:43Z" user="Tooga" uid="19038" lat="59.3508638" lon="18.0678898"/>
+ <node id="1605027135" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:43Z" user="Tooga" uid="19038" lat="59.3508858" lon="18.0678625"/>
+ <node id="1605027158" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:43Z" user="Tooga" uid="19038" lat="59.3509590" lon="18.0681842"/>
+ <node id="1605027160" visible="true" version="2" changeset="19847229" timestamp="2014-01-06T16:46:43Z" user="Tooga" uid="19038" lat="59.3508444" lon="18.0677343"/>
+ <node id="2612449212" visible="true" version="1" changeset="19847229" timestamp="2014-01-06T16:46:39Z" user="Tooga" uid="19038" lat="59.3508026" lon="18.0677863"/>
+ <node id="2612449214" visible="true" version="2" changeset="36774658" timestamp="2016-01-24T12:03:53Z" user="StellanL" uid="28775" lat="59.3507403" lon="18.0679412"/>
+ <node id="2612449216" visible="true" version="1" changeset="19847229" timestamp="2014-01-06T16:46:39Z" user="Tooga" uid="19038" lat="59.3508181" lon="18.0678342"/>
+ <node id="2612449229" visible="true" version="2" changeset="36774658" timestamp="2016-01-24T12:03:53Z" user="StellanL" uid="28775" lat="59.3508569" lon="18.0683092"/>
+ <node id="2647306350" visible="true" version="1" changeset="20314664" timestamp="2014-02-01T11:37:59Z" user="StellanL" uid="28775" lat="59.3508824" lon="18.0681031"/>
+ <node id="3151152383" visible="true" version="1" changeset="26345311" timestamp="2014-10-26T17:11:39Z" user="Snusmumriken" uid="76269" lat="59.3509396" lon="18.0681718"/>
+ <node id="3151152395" visible="true" version="1" changeset="26345311" timestamp="2014-10-26T17:11:40Z" user="Snusmumriken" uid="76269" lat="59.3510814" lon="18.0678928"/>
+ <node id="3151152396" visible="true" version="1" changeset="26345311" timestamp="2014-10-26T17:11:40Z" user="Snusmumriken" uid="76269" lat="59.3511078" lon="18.0679693"/>
+ <node id="9949987928" visible="true" version="1" changeset="124831288" timestamp="2022-08-12T19:40:00Z" user="UliFR" uid="1049697" lat="59.3507850" lon="18.0678038"/>
+ <way id="35405363" visible="true" version="5" changeset="121545363" timestamp="2022-05-26T20:50:30Z" user="UliFR" uid="1049697">
+  <nd ref="415333963"/>
+  <nd ref="415333964"/>
+  <nd ref="3151152395"/>
+  <nd ref="3151152396"/>
+  <nd ref="415333965"/>
+  <nd ref="415333966"/>
+  <nd ref="415333963"/>
+  <tag k="building" v="university"/>
+  <tag k="building:levels" v="2"/>
+  <tag k="roof:levels" v="0"/>
+  <tag k="source" v="Yahoo"/>
+  <tag k="website" v="https://www.kth.se/eecs"/>
+ </way>
+ <way id="147273699" visible="true" version="7" changeset="105709522" timestamp="2021-06-02T06:26:33Z" user="Nitnerock" uid="11350549">
+  <nd ref="1605027160"/>
+  <nd ref="1605027135"/>
+  <nd ref="1605027131"/>
+  <nd ref="1605027158"/>
+  <nd ref="2612449229"/>
+  <nd ref="2612449214"/>
+  <nd ref="2612449216"/>
+  <nd ref="2612449212"/>
+  <nd ref="1605027160"/>
+  <tag k="access" v="yes"/>
+  <tag k="amenity" v="parking"/>
+  <tag k="fee" v="no"/>
+  <tag k="parking" v="surface"/>
+ </way>
+ <way id="309770044" visible="true" version="5" changeset="121630382" timestamp="2022-05-28T19:43:11Z" user="UliFR" uid="1049697">
+  <nd ref="3151152383"/>
+  <nd ref="2647306350"/>
+  <tag k="highway" v="footway"/>
+  <tag k="lit" v="yes"/>
+  <tag k="surface" v="paving_stones"/>
+ </way>
+ <way id="1085890333" visible="true" version="3" changeset="124905773" timestamp="2022-08-14T22:39:56Z" user="UliFR" uid="1049697">
+  <nd ref="9949987928"/>
+  <nd ref="2647306350"/>
+  <tag k="highway" v="service"/>
+  <tag k="lit" v="yes"/>
+  <tag k="source" v="Bing"/>
+  <tag k="surface" v="asphalt"/>
+ </way>
+</osm>

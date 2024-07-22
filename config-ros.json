@@ -10,9 +10,9 @@
     "data_normalization": "none",
     "dropout": 0.0,
     "early_stopping_delta": 0.0,
-    "early_stopping_patience": 10,
+    "early_stopping_patience": null,
     "embedding_dim": 128,
-    "epochs": 1,
+    "epochs": 1000,
     "eval_only": false,
     "exclude_feats": null,
     "experiment_name": "ROS_experiment",
@@ -37,6 +37,7 @@
     "num_heads": 8,
     "num_layers": 3,
     "num_workers": 0,
+    "online_data": "false",
     "optimizer": "Adam",
     "output_dir": "./experiments",
     "pattern": "none",
@@ -51,5 +52,5 @@
     "task": "imputation",
     "tensorboard_dir": "none",
     "val_interval": 1,
-    "val_ratio": 0.2
+    "val_ratio": 0.1
 }
