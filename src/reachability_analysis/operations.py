@@ -10,7 +10,7 @@ from shapely.geometry import Point, Polygon
 from matplotlib.patches import Polygon as poly
 from tqdm import tqdm
 
-from src.datasets.plot import SinDMap
+from src.datasets.plot import SinDMap, SVEAMap
 
 use_pydrake = False
 
@@ -190,6 +190,7 @@ def input_zonotope(U: List[np.ndarray], N: int = 30, gamma: str = "max") -> List
     for i, u in enumerate(U):
         vx[i, 0:u.shape[1]] = u[0, :]
         vy[i, 0:u.shape[1]] = u[1, :]
+    
     vx_mean, vy_mean = vx.mean(axis=0), vy.mean(axis=0)
     if gamma == "std":
         vx_std, vy_std = vx.std(axis=0), vy.std(axis=0)
@@ -198,7 +199,6 @@ def input_zonotope(U: List[np.ndarray], N: int = 30, gamma: str = "max") -> List
     else:
         raise ValueError
     U_k = []
-
     for i in range(0, N):
         z = zonotope(c_z=np.array([vx_mean[i], vy_mean[i]]), G_z=np.array(
             [[vx_std[i], 0], [0, vy_std[i]]]))
@@ -296,7 +296,7 @@ def visualize_zonotopes(z: Union[List[pp.zonotope], List[np.ndarray]], map: Unio
             after plotting of if user writes plt.show() in
             script where function is used
     """
-    if type(map) == SinDMap:
+    if type(map) == SinDMap or type(map) == SVEAMap:
         map_ax = map.plot_areas()
     else:
         map_ax = map

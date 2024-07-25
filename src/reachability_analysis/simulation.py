@@ -15,8 +15,8 @@ project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'
 # Add that directory to sys.path
 sys.path.append(project_dir)
 
-from src.datasets.plot import SinDMap
-from src.reachability_analysis.labeling_oracle import LabelingOracleSINDData, LABELS
+from src.datasets.plot import SVEAMap, SinDMap
+from src.reachability_analysis.labeling_oracle import LabelingOracleROSData, LabelingOracleSINDData, LABELS, LabelingOracleSVEAData
 from src.reachability_analysis.operations import (
     visualize_zonotopes,
     input_zonotope,
@@ -87,10 +87,10 @@ def reachability_for_specific_position_and_mode(
     z = zonotope(c_z, G_z)
     v = vel
     U, X_p, X_m, _ = create_io_state(
-        d, z, v, c, drop_equal=True, angle_filter=True, clustering = clustering
+        d, z, v, c, drop_equal=False, angle_filter=True, clustering = clustering
     )
     process_noise = 0.005
-    _, _, U_traj = split_io_to_trajs(X_p, X_m, U, threshold=5, dropped=True, N=reachability_sets_size)    
+    _, _, U_traj = split_io_to_trajs(X_p, X_m, U, threshold=5, dropped=True, N=reachability_sets_size)
     U_k = input_zonotope(U_traj, N=reachability_sets_size)
     z_w = zonotope(np.array([0, 0]), process_noise * np.ones(shape=(2, 1)))
     M_w = create_M_w(U.shape[1], z_w, disable_progress_bar=sim)
@@ -166,9 +166,10 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
-    load_data: bool = False
+    load_data: bool = False,
+    _sind: any = None
 ):
-    """Reachability for all modes
+    """Reachability for all modes TODO update docstring
 
     Parameters:
     -----------
@@ -184,10 +185,9 @@ def reachability_for_all_modes(
     z = None
     ax = None
     title = ""
-
     for i,( key, _label) in enumerate(test_cases.items()):
         key = int(key.split('_')[1])
-        _sind_, d_, _, mapping = get_data(_load=load_data, config=config, test_case=(key, _label))
+        _sind_, d_, _, mapping = get_data(_load=load_data, config=config, _sind=_sind, test_case=(key, _label))
         clustering = False
         _mode = mapping[key]
         if 'Label:' in _label:
@@ -251,7 +251,7 @@ def reachability_for_all_modes(
     return _z, _labels, _b, _z_all
 
 
-def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict, show_plot: bool = False, save_plot: str = None):
+def  scenario_func(trajectory: np.array, pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict, show_plot: bool = False, save_plot: str = None):
     """
     Run scenario for a specific mode.
     
@@ -301,10 +301,11 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
     _f.close()
 
 
-def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: dict = None, test_case: tuple = (0, 'Label')):
+def get_data(_load: bool = False, _sind: any = None, config: dict = None, test_case: tuple = (0, 'Label')):
     """Calculate the data separation to each class"""
     if not _sind:
-        _sind = LabelingOracleSINDData(config)
+        # TODO sometimes we will want to choose a different type of Labeling Oracle
+        _sind = LabelingOracleROSData(config)
 
     if os.path.exists(os.path.join(config['output_dir'], 'clusters')):
         clusters_root = os.path.join(config['output_dir'], 'clusters')
@@ -339,8 +340,7 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
     else:
         data, labels = structure_input_data(data, labels)
 
-    print(test_case, len(data[labels == test_case[0]]), data.shape, labels.shape)
-    size = len(set(labels))
+    size = max(labels) + 1
     mapping = {i: i for i in range(size)}
     if -1 in labels:
         mapping = {old_val: new_val for new_val, old_val in enumerate(sorted(set(labels)))}

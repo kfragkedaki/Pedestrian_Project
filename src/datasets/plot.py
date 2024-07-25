@@ -7,6 +7,8 @@ import re
 import numpy as np
 import alphashape
 from descartes import PolygonPatch
+from scipy.ndimage import rotate, shift
+from skimage.transform import resize
 
 CWD = os.getcwd()
 while CWD.rsplit("/", 1)[-1] != "Pedestrian_Project":
@@ -15,8 +17,8 @@ while CWD.rsplit("/", 1)[-1] != "Pedestrian_Project":
 ROOT = CWD + "/resources/"
 
 
-class SinDMap:
-    """Map class for the SinD dataset
+class Map:
+    """Parent map class
 
     Parameters:
     -----------
@@ -55,45 +57,6 @@ class SinDMap:
         osmhandler.apply_file(map_dir)
         return osmhandler.osm_data
 
-    def plot_areas(
-        self,
-        ax=None,
-        highlight_areas: list = ["crosswalk", "sidewalk"],
-        alpha: float = 0.08,
-    ):
-        if ax is None:
-            fig, ax = plt.subplots()
-            fig.set_size_inches(6.5, 4.13)
-            fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
-            im = plt.imread(ROOT + "/intersection.jpg")
-            ax.imshow(im, zorder=-1, alpha=0.5, extent=(-25, 60, -10, 40))
-            # Optionally, set the axes limits to the dimensions of the image
-            # ax.set_xlim(-35, 65)
-            ax.set_xlim(-25, 60)
-
-            ax.set_ylim(-10, 40)
-
-        _points = self.get_area("")
-        ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct
-        _attr = dir(self)
-        _polys = [v for (_, v) in enumerate(_attr) if re.findall("poly$", v)]
-        ["_".join([area, "poly"]) for area in highlight_areas]
-        _ids = [
-            _polys.index(i)
-            for i in ["_".join([area, "poly"]) for area in highlight_areas]
-        ]
-        _colors = np.array(["r"] * len(_polys))
-        _colors[_ids] = "green"
-        _alphas = np.array([0.05] * len(_polys))
-        _alphas[_ids] = alpha
-        for i, _poly in enumerate(_polys):
-            ax.add_patch(
-                PolygonPatch(
-                    eval(".".join(["self", _poly])), alpha=_alphas[i], color=_colors[i]
-                )
-            )
-
-        return ax
 
     def plot_single_data(
         self,
@@ -362,6 +325,126 @@ class SinDMap:
 
     def __get_exterior(self, points: list, alpha: float = 0.4):
         return alphashape.alphashape(np.array(points), alpha=alpha)
+
+
+class SinDMap(Map):
+    """Map class for the SinD dataset"""
+
+    def __init__(self, map_dir: str = "SinD/Data/mapfile-Tianjin.osm"):
+        super().__init__(map_dir)
+
+    def plot_areas(
+        self,
+        ax=None,
+        highlight_areas: list = ["crosswalk", "sidewalk"],
+        alpha: float = 0.08,
+    ):
+        if ax is None:
+            fig, ax = plt.subplots()
+            fig.set_size_inches(6.5, 4.13)
+            fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
+            im = plt.imread(ROOT + "/intersection.jpg")
+            ax.imshow(im, zorder=-1, alpha=0.5, extent=(-25, 60, -10, 40))
+            # Optionally, set the axes limits to the dimensions of the image
+            ax.set_xlim(-25, 60)
+            ax.set_ylim(-10, 40)
+
+        _points = self.get_area("")
+        ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct
+        _attr = dir(self)
+        _polys = [v for (_, v) in enumerate(_attr) if re.findall("poly$", v)]
+        ["_".join([area, "poly"]) for area in highlight_areas]
+        _ids = [
+            _polys.index(i)
+            for i in ["_".join([area, "poly"]) for area in highlight_areas]
+        ]
+        _colors = np.array(["r"] * len(_polys))
+        _colors[_ids] = "green"
+        _alphas = np.array([0.05] * len(_polys))
+        _alphas[_ids] = alpha
+        for i, _poly in enumerate(_polys):
+            ax.add_patch(
+                PolygonPatch(
+                    eval(".".join(["self", _poly])), alpha=_alphas[i], color=_colors[i]
+                )
+            )
+
+        return ax
+
+
+class SVEAMap(Map):
+    """Map class for SVEA-generated datasets"""
+
+    def __init__(self, map_dir: str = "seven-eleven.osm"):
+        super().__init__(map_dir)
+
+    @staticmethod
+    def rotate_about_point(image, angle, point):
+        # Calculate the shifts
+        shift_y, shift_x = np.array(image.shape[:2]) / 2.0 - np.array(point)
+
+        # Shift the image to bring the point to the center
+        shifted_image = shift(image, shift=[shift_y, shift_x, 0])
+
+        # Rotate the image around the center
+        rotated_image = rotate(shifted_image, angle, reshape=False)
+
+        # Shift the image back to the original position
+        final_image = shift(rotated_image, shift=[-shift_y, -shift_x, 0])
+
+        return final_image
+
+    def plot_areas(
+        self,
+        ax=None,
+        highlight_areas: list = ["crosswalk", "sidewalk"],
+        alpha: float = 0.08,
+    ):
+        if ax is None:
+            fig, ax = plt.subplots()
+            fig.set_size_inches(6.5, 4.13)
+            fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
+            im = plt.imread(ROOT + "/seven-eleven3.png")
+            # Define the new size (for example, half the original size)
+            # Define the new size
+            new_size = (161.156, 54.925)
+            resized_image = resize(im, new_size, anti_aliasing=True)
+            # Resize the image
+            ax.imshow(resized_image, zorder=-1, alpha=0.5, extent=(0, 161.156, -30, 24.925))
+            # Optionally, set the axes limits to the dimensions of the image
+            ax.set_xlim(60, 120)
+            ax.set_ylim(-10, 10)
+
+        # _points = self.get_area("")
+        # _points
+        # print(self.osm_data)
+        # print(_points)
+        # ax.scatter(*zip(*_points), alpha=0)  # To get bounds correct
+        # center = LL2XYProjector().latlon2xy(59.3460774, 18.0716591)
+        # x = [-100, 100]
+        # y = [-100, 100]
+        # ax.scatter(x, y, alpha=0)  # To get bounds correct
+        # _attr = dir(self)
+        # _polys = [v for (_, v) in enumerate(_attr) if re.findall("poly$", v)]
+        # ["_".join([area, "poly"]) for area in highlight_areas]
+        # _ids = [
+        #     _polys.index(i)
+        #     for i in ["_".join([area, "poly"]) for area in highlight_areas]
+        # ]
+        # _colors = np.array(["r"] * len(_polys))
+        # _colors[_ids] = "green"
+        # _alphas = np.array([0.05] * len(_polys))
+        # _alphas[_ids] = alpha
+        # for i, _poly in enumerate(_polys):
+        #     ax.add_patch(
+        #         PolygonPatch(
+        #             eval(".".join(["self", _poly])), alpha=_alphas[i], color=_colors[i]
+        #         )
+        #     )
+
+        return ax
+
+
 
 
 class OSMHandler(osm.SimpleHandler):

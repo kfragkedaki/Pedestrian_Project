@@ -25,7 +25,6 @@ def separate_data_to_class(data: np.ndarray, classification: np.ndarray, size: i
     # for _i in range(len(_class)): _class[_i] = []
     for i,_trajectory in enumerate(data):
         _class[classification[i]].append(_trajectory)
-        
     for i in _class.keys():
         _class[i] = np.array(_class[i])
     return _class
@@ -128,6 +127,8 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
         X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
         U = np.hstack([U, _U]) if U.size else _U
 
+
+    U_d = U
     if drop_equal:
         X_p, _ids = __drop_equal(X_p)
         X_m = np.delete(X_m, _ids, axis=1)

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from bagpy import bagreader
+import shutil
 
 logger = logging.getLogger("__main__")
 
@@ -206,7 +207,6 @@ class SINDData(BaseData):
         self.config = config
 
         # Load and preprocess data
-        print(456, config["data_dir"], config["pattern"])
         self.all_df = self.load_all(
             config["data_dir"], pattern=config["pattern"]
         )  # 508644
@@ -286,7 +286,6 @@ class SINDData(BaseData):
         return df
 
     
-
 class ROSData(BaseData):
     """
     Dataset class for ROS datasets.
@@ -375,7 +374,6 @@ class ROSData(BaseData):
                 "{} nan values in {} will be replaced by 1000".format(num_nan, filepath)
             )
             df = df.fillna(1000)  # NAN VALUES TO 1000
-
         return df
 
 
@@ -402,27 +400,28 @@ class ROSData(BaseData):
             # Split the block into lines
             lines = block.split('\n')
             
-            # Extract the required fields
-            id_val = int(lines[0].split(': ')[1])
-            x = float(lines[5].split(': ')[1])
-            y = float(lines[6].split(': ')[1])
-            vx = float(lines[12].split(': ')[1])
-            vy = float(lines[13].split(': ')[1])
-            ax = float(lines[14].split(': ')[1])
-            ay = float(lines[15].split(': ')[1])
+            # Extract the required fields, ignoring null rows
+            if len(lines) > 15: 
+                id_val = int(lines[0].split(': ')[1])
+                x = float(lines[5].split(': ')[1])
+                y = float(lines[6].split(': ')[1])
+                vx = float(lines[12].split(': ')[1])
+                vy = float(lines[13].split(': ')[1])
+                ax = float(lines[14].split(': ')[1])
+                ay = float(lines[15].split(': ')[1])
             
-            # Append the extracted data as a dictionary to the list
-            data.append({
-                'track_id': id_val,
-                'frame_id': frame_id,
-                'timestamp_ms' : timestamp_ms,
-                'x': x,
-                'y': y,
-                'vx': vx,
-                'vy': vy,
-                'ax': ax,
-                'ay': ay
-            })
+                # Append the extracted data as a dictionary to the list
+                data.append({
+                    'track_id': id_val,
+                    'frame_id': frame_id,
+                    'timestamp_ms' : timestamp_ms,
+                    'x': x,
+                    'y': y,
+                    'vx': vx,
+                    'vy': vy,
+                    'ax': ax,
+                    'ay': ay
+                })
 
         
         # Convert the list of dictionaries to a DataFrame
@@ -434,7 +433,7 @@ class ROSData(BaseData):
     def read_data(filepath):
         """Reads a single .bag."""
         b = bagreader(filepath)
-        message_files = b.message_by_topic('/pedestrian_flow_estimate/pedestrian_flow_estimate')
+        message_files = b.message_by_topic('/pedestrian_flow_estimate/pedestrian_flow_estimate_reprocessed')
 
         # Attempt to read the CSV file with UTF-8 encoding
         try:
@@ -448,8 +447,15 @@ class ROSData(BaseData):
         if os.path.exists(message_files):
             os.remove(message_files)
 
-        result_df = pd.concat(df.apply(ROSData.parse_row_to_df, axis=1).tolist(), ignore_index=True)
+        
+        # Get the directory path of the file
+        directory_path = os.path.dirname(message_files)
 
+        # Check if the directory is empty and remove it
+        if os.path.exists(directory_path) and not os.listdir(directory_path):
+            shutil.rmtree(directory_path)
+
+        result_df = pd.concat(df.apply(ROSData.parse_row_to_df, axis=1).tolist(), ignore_index=True)
 
         # Cleaning up timestamps
         result_df['timestamp_ms'] -= min(result_df['timestamp_ms'])
@@ -470,6 +476,7 @@ class ROSData(BaseData):
 
     def _gather_data_paths(self, root_dir, pattern):
         # Implementation to gather data paths  based on a given pattern
+        print(root_dir)
         data_paths = []  # list of all paths
         for root, dirs, files in os.walk(root_dir):
             for file in files:
@@ -527,8 +534,6 @@ class SVEAData(BaseData):
         """
         Process a message and update all_df. Ensure that each trajectory has a max of config['data_chunk_len'] points stored
         """
-        #TODO Marco: integrate with ROS
-
         frame_id = msg.header.seq
         timestamp_ms = msg.header.stamp.secs * 1000 + msg.header.stamp.nsecs / 1e6 
 

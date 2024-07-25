@@ -1,6 +1,6 @@
-from src.datasets.data import SINDData
+from src.datasets.data import SINDData, SVEAData, ROSData
 from src.utils.poly_process import crosswalk_poly_for_label as cpfl
-from src.datasets.plot import SinDMap
+from src.datasets.plot import SinDMap, SVEAMap
 from shapely.geometry import LineString, Point
 from math import pi
 from tqdm import tqdm
@@ -224,3 +224,107 @@ def angle_between_angles(a1: float, a2: float):
     v = np.array([np.cos(a1), np.sin(a1)])
     w = np.array([np.cos(a2), np.sin(a2)])
     return np.math.atan2(np.linalg.det([v, w]), np.dot(v, w))
+
+class LabelingOracleROSData(LabelingOracleSINDData):
+
+    def __init__(self, config: dict, n_proc=None):
+        # Initialize the base class with all its setup
+        super().__init__(config, n_proc)
+        self.map = SVEAMap('seven-eleven.osm')
+        self.config = config
+
+    def create_chunks(self, padding_value=0, save_data: bool = True):
+        list = []
+        mask_list = []
+        for _, group in self.all_df.groupby('track_id'):
+            # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
+            data = group[self.feature_names].to_numpy()
+            # Chunking and padding
+            chunks = [data[i:i + self.config["data_chunk_len"]] for i in range(0, len(data), self.config["data_chunk_len"])]
+            
+            for chunk in chunks:
+                chunk_length = len(chunk)
+                padding_length = self.config["data_chunk_len"] - chunk_length
+                
+                # Pad chunk
+                padded_chunk = np.pad(chunk, ((0, padding_length), (0, 0)), 'constant', constant_values=padding_value)
+                # Create mask: 1s for original data, 0s for padding
+                mask = np.ones(self.config["data_chunk_len"], dtype=int)
+                # Set padding area to 0
+                mask[chunk_length:] = 0
+
+                # Save data in a list
+                mask_list.append(mask == True)
+                list.append(padded_chunk)
+
+        # Stack all tensors to create a single 3D tensor
+        self.dataset = np.stack(list)
+        self.padded_batches = np.stack(mask_list)
+
+        # TODO if save data:
+
+        return self.dataset, self.padded_batches
+    
+    def labels(
+        self,
+        data: np.ndarray,
+        save_data: bool = True,
+        disable_progress_bar: bool = False,
+    ):
+        return np.array([0])
+
+
+    def filter_paddings(self, dataset: np.ndarray, padded_batches: np.ndarray):
+        # Find batches with no padding
+        unpadded_batches = np.all(padded_batches, axis=1)  # True only for batches with all 1s (no padding)
+
+        # Filter the dataset to keep only completely unpadded batches
+        filtered_data = dataset[unpadded_batches]
+
+        return filtered_data
+
+class LabelingOracleSVEAData(SVEAData):
+
+    def __init__(self, config: dict, n_proc=None):
+        # Initialize the base class with all its setup
+        super().__init__(config, n_proc)
+        self.map = SinDMap()
+        self.config = config
+
+    def create_chunks(self, padding_value=0, save_data: bool = True):
+        list = []
+        mask_list = []
+        for _, group in self.all_df.groupby('track_id'):
+            # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
+            data = group[self.feature_names].to_numpy()
+            # Chunking and padding
+            chunks = [data[i:i + self.config["data_chunk_len"]] for i in range(0, len(data), self.config["data_chunk_len"])]
+            
+            for chunk in chunks:
+                chunk_length = len(chunk)
+                padding_length = self.config["data_chunk_len"] - chunk_length
+                
+                # Pad chunk
+                padded_chunk = np.pad(chunk, ((0, padding_length), (0, 0)), 'constant', constant_values=padding_value)
+                # Create mask: 1s for original data, 0s for padding
+                mask = np.ones(self.config["data_chunk_len"], dtype=int)
+                # Set padding area to 0
+                mask[chunk_length:] = 0
+
+                # Save data in a list
+                mask_list.append(mask == True)
+                list.append(padded_chunk)
+
+        # Stack all tensors to create a single 3D tensor
+        self.dataset = np.stack(list)
+        self.padded_batches = np.stack(mask_list)
+
+
+    def filter_paddings(self, dataset: np.ndarray, padded_batches: np.ndarray):
+        # Find batches with no padding
+        unpadded_batches = np.all(padded_batches, axis=1)  # True only for batches with all 1s (no padding)
+
+        # Filter the dataset to keep only completely unpadded batches
+        filtered_data = dataset[unpadded_batches]
+
+        return filtered_data

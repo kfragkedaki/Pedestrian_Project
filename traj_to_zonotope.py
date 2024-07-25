@@ -94,9 +94,7 @@ class TrajToZonotope:
             val_data = normalizer.normalize(val_data)
 
         task_dataset, collate_fn = load_task_datasets(self.config)
-        print(self.data_oracle.all_IDs)
         val_dataset = task_dataset(self.data_oracle.feature_df, [1])
-        print(len(self.data_oracle.feature_df))
 
         # Dataloaders
         val_loader = DataLoader(
