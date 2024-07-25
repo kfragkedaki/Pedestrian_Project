@@ -16,11 +16,10 @@ import os
 
 ROOT = os.getcwd()
 
+
 def run(hyperparameter_config: dict):
     # Pretty print the run args
-    hyperparameter_config["data_dir"] = (
-        ROOT + "/resources/SinD/Data"
-    )
+    hyperparameter_config["data_dir"] = ROOT + "/resources/SinD/Data"
     hyperparameter_config["data_class"] = "sind"
     hyperparameter_config["pattern"] = "Ped_smoothed_tracks"
     hyperparameter_config["data_class"] = "sind"
@@ -29,9 +28,7 @@ def run(hyperparameter_config: dict):
     hyperparameter_config["comment"] = (
         "pretraining_through_imputation-hyperparameter_tuning"
     )
-    hyperparameter_config["output_dir"] = (
-        ROOT + "/ray_results"
-    )
+    hyperparameter_config["output_dir"] = ROOT + "/ray_results"
 
     args_list = [f"--{k}={v}" for k, v in hyperparameter_config.items()]
     args_list.append("--hyperparameter_tuning")
@@ -54,7 +51,9 @@ if __name__ == "__main__":
         n_initial_points=int(N_ITER / 10),
     )
     algo = ConcurrencyLimiter(searcher, max_concurrent=6)
-    objective = tune.with_resources(tune.with_parameters(run), resources={"cpu": 12, "gpu": 1})
+    objective = tune.with_resources(
+        tune.with_parameters(run), resources={"cpu": 12, "gpu": 1}
+    )
 
     tuner = tune.Tuner(
         trainable=objective,

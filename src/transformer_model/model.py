@@ -104,7 +104,9 @@ def evaluate(evaluator, config=None, save_embeddings=True):
         )
     eval_runtime = time.time() - eval_start_time
 
-    outputs_filepath = os.path.join(os.path.join(config["output_dir"], "output_data.pt"))
+    outputs_filepath = os.path.join(
+        os.path.join(config["output_dir"], "output_data.pt")
+    )
     torch.save(per_batch, outputs_filepath)
 
     print_str = "Evaluation Summary: "

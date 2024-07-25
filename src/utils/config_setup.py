@@ -23,9 +23,22 @@ def load_config(config_filepath):
     with open(config_filepath) as cnfg:
         config = json.load(cnfg)
 
-    keys_to_delete = ['load_model', 'eval_only', 'pos_encoding', 'pattern', 'data_class', 'data_dir', 
-                    'experiment_name', 'comment', 'hyperparameter_tuning', 'output_dir', 'save_embeddings', 
-                    'val_ratio', 'dropout', 'exclude_feats']
+    keys_to_delete = [
+        "load_model",
+        "eval_only",
+        "pos_encoding",
+        "pattern",
+        "data_class",
+        "data_dir",
+        "experiment_name",
+        "comment",
+        "hyperparameter_tuning",
+        "output_dir",
+        "save_embeddings",
+        "val_ratio",
+        "dropout",
+        "exclude_feats",
+    ]
 
     for key in keys_to_delete:
         del config[key]

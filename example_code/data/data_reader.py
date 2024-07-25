@@ -89,7 +89,7 @@ class SinD:
 
     def __load_dataset(self, name):
         i = 0
-        self.frequency = 1 / (100.100100100 / 1000) # ??
+        self.frequency = 1 / (100.100100100 / 1000)
         self.pedestrian_data = {}
         for dataset in self._DATASETS:
             _path = "/".join([ROOT, self._DATADIR, dataset, name])
@@ -128,7 +128,9 @@ class SinD:
                 _data["ay"],
             )
             v = np.linalg.norm(list(zip(vx, vy)), axis=1)
-            _id = np.where(v >= threshold) if velocity_filter else np.where(v >= -1) # make sure pedestrians are moving
+            _id = (
+                np.where(v >= threshold) if velocity_filter else np.where(v >= -1)
+            )  # make sure pedestrians are moving
             x, y, vx, vy, ax, ay = (
                 x.iloc[_id],
                 y.iloc[_id],
@@ -157,7 +159,8 @@ class SinD:
             pickle.dump(np.array(_concat_data), _f)
         return np.array(_concat_data)
 
-    def labels(self,
+    def labels(
+        self,
         data: np.ndarray,
         input_len: int = 30,
         save_data: bool = True,
@@ -382,14 +385,25 @@ class SinD:
         plt.grid()
         plt.show()
 
-
-    def plot_dataset(self, data= None, color: str= 'orange',  map_overlay: bool = True, alpha: float = 0.2):
+    def plot_dataset(
+        self,
+        data=None,
+        color: str = "orange",
+        map_overlay: bool = True,
+        alpha: float = 0.2,
+    ):
         pedestrian_data = data if data else self.pedestrian_data
         ax1 = plt.figure(1).add_subplot(projection="3d")
-        ax2 = self.map.plot_areas(alpha=alpha)[0] if map_overlay == True else plt.figure(2).add_subplot()
+        ax2 = (
+            self.map.plot_areas(alpha=alpha)[0]
+            if map_overlay == True
+            else plt.figure(2).add_subplot()
+        )
         ax3 = plt.figure(3).add_subplot(projection="3d")
         for _id in pedestrian_data.keys():
-            x, y = np.array(pedestrian_data[_id]["x"]), np.array(pedestrian_data[_id]["y"])
+            x, y = np.array(pedestrian_data[_id]["x"]), np.array(
+                pedestrian_data[_id]["y"]
+            )
             vx, vy = pedestrian_data[_id]["vx"], pedestrian_data[_id]["vy"]
             ax, ay = pedestrian_data[_id]["ax"], pedestrian_data[_id]["ay"]
             v = np.sqrt(np.array(vx).T ** 2 + np.array(vy).T ** 2)
@@ -397,12 +411,12 @@ class SinD:
             ax1.plot(x, y, zs=v, c="r"), ax1.set_title(
                 "Velocity profile of trajectories"
             ), ax1.set_xlim(0, 30), ax1.set_ylim(0, 30), ax1.set_zlim(0, 5)
-            ax1.set_xlabel('X'), ax1.set_ylabel('Y'), ax1.set_zlabel('V')
+            ax1.set_xlabel("X"), ax1.set_ylabel("Y"), ax1.set_zlabel("V")
             ax2.plot(x, y, c=color), ax2.set_title("Pedestrian trajectories")
             ax3.plot(x, y, zs=a, c="r"), ax3.set_title(
                 "Acceleration profile of trajectories"
             ), ax3.set_xlim(0, 30), ax3.set_ylim(0, 30), ax3.set_zlim(0, 5)
-            ax3.set_xlabel('X'), ax3.set_ylabel('Y'), ax3.set_zlabel('A')
+            ax3.set_xlabel("X"), ax3.set_ylabel("Y"), ax3.set_zlabel("A")
         plt.grid()
         plt.show()
 

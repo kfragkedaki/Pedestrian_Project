@@ -7,34 +7,39 @@ from itertools import chain
 import pandas as pd
 
 
-def filter_paddings( dataset: np.ndarray, padded_batches: np.ndarray):
+def filter_paddings(dataset: np.ndarray, padded_batches: np.ndarray):
     # Find batches with no padding
-    unpadded_batches = np.all(padded_batches, axis=1)  # True only for batches with all 1s (no padding)
+    unpadded_batches = np.all(
+        padded_batches, axis=1
+    )  # True only for batches with all 1s (no padding)
 
     # Filter the dataset to keep only completely unpadded batches
     filtered_data = dataset[unpadded_batches]
 
     return filtered_data
 
-def separate_data_to_class(data: np.ndarray, classification: np.ndarray, size: int) -> np.ndarray:
-    """ Separate the entire dataset into a list[list] where each nested list contain 
-        the trajectories for that specific class.
 
-        Parameters:
-        -----------
-        data : np.ndarray
-            The entire dataset
-        classification : np.ndarray
-            The labels from the classification framework for the dataset in data
+def separate_data_to_class(
+    data: np.ndarray, classification: np.ndarray, size: int
+) -> np.ndarray:
+    """Separate the entire dataset into a list[list] where each nested list contain
+    the trajectories for that specific class.
+
+    Parameters:
+    -----------
+    data : np.ndarray
+        The entire dataset
+    classification : np.ndarray
+        The labels from the classification framework for the dataset in data
     """
     # _class = [0] * size
     _class = {}
     for i in range(size):
         _class[i] = []
     # for _i in range(len(_class)): _class[_i] = []
-    for i,_trajectory in enumerate(data):
+    for i, _trajectory in enumerate(data):
         _class[classification[i]].append(_trajectory)
-        
+
     for i in _class.keys():
         _class[i] = np.array(_class[i])
     return _class
@@ -65,8 +70,11 @@ def structure_input_data(data: np.ndarray, labels: np.ndarray):
         new_l = [*new_l, *[_l] * _min_len]
     return np.array(new_d), np.array(new_l)
 
-def structure_input_data_for_clusters(data: np.ndarray, labels: np.ndarray, max_data: int = 100):
-    """Drops random trajectories such that the data of a class are not 
+
+def structure_input_data_for_clusters(
+    data: np.ndarray, labels: np.ndarray, max_data: int = 100
+):
+    """Drops random trajectories such that the data of a class are not
     too may for calculating the inclussion accuracy
     Parameters:
     -----------
@@ -85,19 +93,28 @@ def structure_input_data_for_clusters(data: np.ndarray, labels: np.ndarray, max_
         if len(_v) > max_data:
             _ids = np.random.randint(0, len(_v), size=max_data)
         else:
-            _ids = range(len(_v)) 
+            _ids = range(len(_v))
 
         new_d = [*new_d, *_v[_ids]]
         new_l = [*new_l, *[_l] * len(_ids)]
     return np.array(new_d), np.array(new_l)
 
-def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, classification: Union[int, List[int]], drop_equal: bool = True, angle_filter: bool = True, clustering: bool = False) -> List[np.ndarray]:
-    """ Function to create D = (X-, X+, U-) in the reachability algorithm
+
+def create_io_state(
+    data: dict,
+    measurement: pp.zonotope,
+    vel: np.ndarray,
+    classification: Union[int, List[int]],
+    drop_equal: bool = True,
+    angle_filter: bool = True,
+    clustering: bool = False,
+) -> List[np.ndarray]:
+    """Function to create D = (X-, X+, U-) in the reachability algorithm
 
     Parameters:
     -----------
     data : dict
-        Data from that has been precomputed by the separate_data_to_class function, 
+        Data from that has been precomputed by the separate_data_to_class function,
         where each key is a class and each value is a 3D array (trajectories, time, features)
     measurement : pp.zonotope
         The measurement from which the reachable sets should be calculated
@@ -116,15 +133,26 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
         Filter based on initial heading of chunk and pedestrian
     """
     if isinstance(classification, list):
-        _data = np.concatenate([data[cls] for cls in classification if cls in data], axis=0)
+        _data = np.concatenate(
+            [data[cls] for cls in classification if cls in data], axis=0
+        )
     else:
         _data = data.get(classification, np.array([]))
-    
+
     X_m, X_p, U = np.array([]), np.array([]), np.array([])
     X_m_all, X_p_all, U_all = np.array([]), np.array([]), np.array([])
 
     _ped_poly = Polygon(pp.to_V(measurement))
-    _angle_set = np.array([np.arctan2(vel[1], vel[0])-(np.pi/8), np.arctan2(vel[1], vel[0])+(np.pi/8)]) if angle_filter else np.array([-np.pi, +np.pi])
+    _angle_set = (
+        np.array(
+            [
+                np.arctan2(vel[1], vel[0]) - (np.pi / 8),
+                np.arctan2(vel[1], vel[0]) + (np.pi / 8),
+            ]
+        )
+        if angle_filter
+        else np.array([-np.pi, +np.pi])
+    )
     for _t in _data:
         _x, _y = _t[:, 0], _t[:, 1]
         _vx, _vy = _t[:, 2], _t[:, 3]
@@ -133,7 +161,9 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
         _X_p, _X_m = _X[:, 1:], _X[:, :-1]
         _U = np.array([_vx, _vy])[:, :-1]
 
-        if (_line.intersects(_ped_poly) and __in_between(np.arctan2(np.mean(_vy[:3]), np.mean(_vx[:3])), _angle_set)):
+        if _line.intersects(_ped_poly) and __in_between(
+            np.arctan2(np.mean(_vy[:3]), np.mean(_vx[:3])), _angle_set
+        ):
             X_p = np.hstack([X_p, _X_p]) if X_p.size else _X_p
             X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
             U = np.hstack([U, _U]) if U.size else _U
@@ -141,7 +171,7 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
             X_p_all = np.hstack([X_p_all, _X_p]) if X_p_all.size else _X_p
             X_m_all = np.hstack([X_m_all, _X_m]) if X_m_all.size else _X_m
             U_all = np.hstack([U_all, _U]) if U_all.size else _U
-        
+
     if X_p.size == 0:
         X_p = X_p_all
         X_m = X_m_all
@@ -157,7 +187,7 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
 
 
 def __in_between(val, angle_range):
-    """ Check if the angle 'val' is within the range defined by 'angle_range'. """
+    """Check if the angle 'val' is within the range defined by 'angle_range'."""
     assert angle_range.shape[0] == 2
     angle_min = angle_range[0]
     angle_max = angle_range[1]
@@ -170,52 +200,60 @@ def __in_between(val, angle_range):
 
 def __drop_equal(arr: np.ndarray):
     _d, _ids = {}, np.array([], dtype=int)
-    if len(arr.shape) == 1: return arr, _ids
+    if len(arr.shape) == 1:
+        return arr, _ids
     assert arr.shape[1] > arr.shape[0]
     for i, a in enumerate(arr.T):
         if str(a) not in _d:
-            _d.update({str(a):0})
+            _d.update({str(a): 0})
         elif str(a) in _d:
             _ids = np.hstack((_ids, i))
     return np.delete(arr, _ids, axis=1), _ids
 
-def split_io_to_trajs(X_p: np.ndarray, X_m: np.ndarray, U: np.ndarray, threshold: float = 0.8, dropped: bool = True, N: int = 30):
-    """ Split the IO state (that drops equal points) into trajectories of different sizes
 
-        Parameters:
-        -----------
-        X_p : np.ndarray
-            X+ data
-        X_m : np.ndarray
-            X- data
-        U : np.ndarray
-            Inputs
-        threshold : float (default = 0.8)
-            Threshold for when regarding two points on the same trajectory
-        dropped : bool (default = True)
-            Set this to True if the equal points have been dropped from
-            the data
-        N : int (default = 30)
-            Time horizon of the reachability analysis
+def split_io_to_trajs(
+    X_p: np.ndarray,
+    X_m: np.ndarray,
+    U: np.ndarray,
+    threshold: float = 0.8,
+    dropped: bool = True,
+    N: int = 30,
+):
+    """Split the IO state (that drops equal points) into trajectories of different sizes
+
+    Parameters:
+    -----------
+    X_p : np.ndarray
+        X+ data
+    X_m : np.ndarray
+        X- data
+    U : np.ndarray
+        Inputs
+    threshold : float (default = 0.8)
+        Threshold for when regarding two points on the same trajectory
+    dropped : bool (default = True)
+        Set this to True if the equal points have been dropped from
+        the data
+    N : int (default = 30)
+        Time horizon of the reachability analysis
     """
     _X_p, _X_m, _U = [], [], []
     if dropped:
-        x_prev = X_p[:,0]
+        x_prev = X_p[:, 0]
         i_prev = 0
-        for i,x in enumerate(X_p[:,1:].T):
-            _dist = np.linalg.norm(x-x_prev)
+        for i, x in enumerate(X_p[:, 1:].T):
+            _dist = np.linalg.norm(x - x_prev)
             x_prev = x
             if _dist > threshold:
-                _X_p.append(X_p[:,i_prev:i+1])
-                _X_m.append(X_m[:,i_prev:i+1])
-                _U.append(U[:,i_prev:i+1])
-                i_prev = i+1
+                _X_p.append(X_p[:, i_prev : i + 1])
+                _X_m.append(X_m[:, i_prev : i + 1])
+                _U.append(U[:, i_prev : i + 1])
+                i_prev = i + 1
     else:
-        for i in range(N, U.shape[1]+1, N):
-            _U.append(U[:,i-N:i])
+        for i in range(N, U.shape[1] + 1, N):
+            _U.append(U[:, i - N : i])
     if len(_U) == 0:
-        _X_p.append(X_p[:,i_prev:i+1])
-        _X_m.append(X_m[:,i_prev:i+1])
-        _U.append(U[:,i_prev:i+1])
+        _X_p.append(X_p[:, i_prev : i + 1])
+        _X_m.append(X_m[:, i_prev : i + 1])
+        _U.append(U[:, i_prev : i + 1])
     return _X_p, _X_m, _U
-    

@@ -6,7 +6,7 @@ from math import pi
 from tqdm import tqdm
 import numpy as np
 import pickle
-import os 
+import os
 
 LABELS = {
     "cross_left": 0,
@@ -24,11 +24,12 @@ while CWD.rsplit("/", 1)[-1] != "Pedestrian_Project":
 
 ROOT = CWD + "/resources"
 
+
 class LabelingOracleSINDData(SINDData):
     """
     Extended dataset class for SIND dataset with additional functionalities.
     """
-    
+
     def __init__(self, config: dict, n_proc=None):
         # Initialize the base class with all its setup
         super().__init__(config, n_proc)
@@ -38,18 +39,26 @@ class LabelingOracleSINDData(SINDData):
     def create_chunks(self, padding_value=0, save_data: bool = True):
         list = []
         mask_list = []
-        for _, group in self.all_df.groupby('track_id'):
+        for _, group in self.all_df.groupby("track_id"):
             # Convert grouped DataFrame to NumPy array, excluding 'global_track_id'
             data = group[self.feature_names].to_numpy()
             # Chunking and padding
-            chunks = [data[i:i + self.config["data_chunk_len"]] for i in range(0, len(data), self.config["data_chunk_len"])]
-            
+            chunks = [
+                data[i : i + self.config["data_chunk_len"]]
+                for i in range(0, len(data), self.config["data_chunk_len"])
+            ]
+
             for chunk in chunks:
                 chunk_length = len(chunk)
                 padding_length = self.config["data_chunk_len"] - chunk_length
-                
+
                 # Pad chunk
-                padded_chunk = np.pad(chunk, ((0, padding_length), (0, 0)), 'constant', constant_values=padding_value)
+                padded_chunk = np.pad(
+                    chunk,
+                    ((0, padding_length), (0, 0)),
+                    "constant",
+                    constant_values=padding_value,
+                )
                 # Create mask: 1s for original data, 0s for padding
                 mask = np.ones(self.config["data_chunk_len"], dtype=int)
                 # Set padding area to 0
@@ -80,9 +89,11 @@ class LabelingOracleSINDData(SINDData):
         _labels = []
         _crosswalks = cpfl(self.map)
         for _data in tqdm(data, desc="Labeling data", disable=disable_progress_bar):
-            _x, _y = _data[:, 0] , _data[:, 1]
+            _x, _y = _data[:, 0], _data[:, 1]
             _l = LineString(list(zip(_x, _y)))
-            _avg_angle = np.arctan2(np.mean(_y[2:6] - _y[0:4]), np.mean(_x[2:6] - _x[0:4]))
+            _avg_angle = np.arctan2(
+                np.mean(_y[2:6] - _y[0:4]), np.mean(_x[2:6] - _x[0:4])
+            )
             _avg_angle_end = np.arctan2(
                 np.mean(_y[-6:-2] - _y[-4:]), np.mean(_x[-6:-2] - _x[-4:])
             )
@@ -200,8 +211,8 @@ class LabelingOracleSINDData(SINDData):
             _f = open(ROOT + "/sind_labels.pkl", "wb")
             pickle.dump(np.array(_labels), _f)
         return np.array(_labels)
-    
-    
+
+
 def angle_between_angles(a1: float, a2: float):
     """Calculate interior angle between two angles
 

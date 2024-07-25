@@ -79,7 +79,9 @@ class Normalizer(object):
             max_vals = grouped.transform("max")
             return df * (max_vals - min_vals) + min_vals
         else:
-            raise NameError(f'Inverse normalize method "{self.norm_type}" not implemented')
+            raise NameError(
+                f'Inverse normalize method "{self.norm_type}" not implemented'
+            )
 
 
 class BaseData(object):
@@ -271,15 +273,16 @@ class SINDData(BaseData):
         # Group by global_chunk_id and filter
         filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
         return filtered_df
-    
-    
+
     def reassign_chunk_indices(self, df):
         # Create a unique list of the old chunk indices
-        unique_chunks = df['data_chunk_len'].unique()
+        unique_chunks = df["data_chunk_len"].unique()
         # Create a mapping from old to new indices
-        chunk_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)}
+        chunk_mapping = {
+            old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)
+        }
         # Map the old indices to new indices
-        df['data_chunk_len'] = df['data_chunk_len'].map(chunk_mapping)
+        df["data_chunk_len"] = df["data_chunk_len"].map(chunk_mapping)
         return df
 
 

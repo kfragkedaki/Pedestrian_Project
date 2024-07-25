@@ -109,7 +109,7 @@ class Options(object):
         self.parser.add_argument(
             "--pattern",
             type=str,
-            default='Ped_smoothed_tracks',
+            default="Ped_smoothed_tracks",
             help="Regex pattern used to select files contained in `data_dir`. If None, all data will be used.",
         )
         self.parser.add_argument(
@@ -209,7 +209,9 @@ class Options(object):
             default=256,
             help="Number of instances per batch during training",
         )
-        self.parser.add_argument("--lr", type=float, default= 0.0005011190688592435, help="learning rate")
+        self.parser.add_argument(
+            "--lr", type=float, default=0.0005011190688592435, help="learning rate"
+        )
         self.parser.add_argument(
             "--lr_step",
             type=int,
