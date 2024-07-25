@@ -113,7 +113,7 @@ class SinD:
         self,
         threshold: float = 0.5,
         input_len: int = 30,
-        save_data: bool = True,
+        save_data: bool = False,
         velocity_filter: bool = True,
     ):
         _concat_data = []
@@ -163,7 +163,7 @@ class SinD:
         self,
         data: np.ndarray,
         input_len: int = 30,
-        save_data: bool = True,
+        save_data: bool = False,
         disable_progress_bar: bool = False,
     ):
         _labels = []

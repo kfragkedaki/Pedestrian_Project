@@ -10,7 +10,7 @@ import argparse
 import sys
 
 # Get the absolute path of the directory two levels up
-project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Add that directory to sys.path
 sys.path.append(project_dir)
@@ -24,7 +24,14 @@ from src.reachability_analysis.operations import (
     zonotope_area,
 )
 from src.reachability_analysis.reachability import LTI_reachability
-from src.reachability_analysis.input_state import create_io_state, separate_data_to_class, structure_input_data, structure_input_data_for_clusters, split_io_to_trajs, filter_paddings
+from src.reachability_analysis.input_state import (
+    create_io_state,
+    separate_data_to_class,
+    structure_input_data,
+    structure_input_data_for_clusters,
+    split_io_to_trajs,
+    filter_paddings,
+)
 from src.reachability_analysis.zonotope import zonotope
 from src.reachability_analysis.utils import load_data
 
@@ -35,21 +42,22 @@ ROOT_RESOURCES = os.getcwd() + "/resources"
 DATADIR = "SinD/Data"
 REVERSED_LABELS = {value: key for key, value in LABELS.items()}
 COLORS = [
-    [60/255 , 159/255 , 69/255, 0.4], # Behavioral Zonotope
-    [32/255 , 102/255 , 168/255, 0.4], # Transformer-based Cluster Zonotope 
-    [0, 0, 0, 0.2], # Cluster Zonotope
-    [0.55, 0.14, 0.14, .4], # Baseline Zonotope
-    [63/255, 63/255, 63/255, 1], # Past Trajectory
-    [184/255 , 184/255 , 184/255, 1], # Future Trajectory
-    [0/255 , 0/255 , 0/255, .6], # Current Position
+    [60 / 255, 159 / 255, 69 / 255, 0.4],  # Behavioral Zonotope
+    [32 / 255, 102 / 255, 168 / 255, 0.4],  # Transformer-based Cluster Zonotope
+    [0, 0, 0, 0.2],  # Cluster Zonotope
+    [0.55, 0.14, 0.14, 0.4],  # Baseline Zonotope
+    [63 / 255, 63 / 255, 63 / 255, 1],  # Past Trajectory
+    [184 / 255, 184 / 255, 184 / 255, 1],  # Future Trajectory
+    [0 / 255, 0 / 255, 0 / 255, 0.6],  # Current Position
     # [52/255 , 78/255 , 92/255 ], # Position
 ]
 
 TEST_TRAJECTORIES = [
-    'cross_illegal_8_11_1',
-    'crossing_now_7_28_1',
-    'cross_left_8_6_4',
+    "cross_illegal_8_11_1",
+    "crossing_now_7_28_1",
+    "cross_left_8_6_4",
 ]
+
 
 def reachability_for_specific_position_and_mode(
     pos: np.ndarray = np.array([-3.4, 28.3]),
@@ -79,7 +87,9 @@ def reachability_for_specific_position_and_mode(
     _sind_ : LabelingOracleSINDData
     _d : np.ndarray
     """
-    input_len = np.array(d[0]).shape[1] # (label_id, trajectory_id, input_len, features)
+    input_len = np.array(d[0]).shape[
+        1
+    ]  # (label_id, trajectory_id, input_len, features)
     reachability_sets_size = input_len - 1
 
     process_noise = 0.005
@@ -89,37 +99,47 @@ def reachability_for_specific_position_and_mode(
 
     G_z = np.array([[2, 0, 1], [0, 2, 0.6]])
     z = zonotope(c_z, G_z)
-    U, X_p, X_m, _ = create_io_state(
-        d, z, v, l, drop_equal=False, angle_filter=True
-    )
+    U, X_p, X_m, _ = create_io_state(d, z, v, l, drop_equal=False, angle_filter=True)
 
-    _, _, U_traj = split_io_to_trajs(X_p, X_m, U, threshold=5, dropped=False, N=reachability_sets_size)    
+    _, _, U_traj = split_io_to_trajs(
+        X_p, X_m, U, threshold=5, dropped=False, N=reachability_sets_size
+    )
     U_k = input_zonotope(U_traj, N=reachability_sets_size)
     M_w = create_M_w(U.shape[1], z_w, disable_progress_bar=sim)
     G_z = np.array([[0.5, 0, 0.25], [0, 0.5, 0.15]])
     z = zonotope(c_z, G_z)
     R_all = LTI_reachability(
-        U, 
-        X_p, 
-        X_m, 
-        z, 
-        z_w, 
-        M_w, 
-        U_k, 
-        N=reachability_sets_size, 
-        disable_progress_bar=sim
+        U,
+        X_p,
+        X_m,
+        z,
+        z_w,
+        M_w,
+        U_k,
+        N=reachability_sets_size,
+        disable_progress_bar=sim,
     )
     R = R_all[-1]
     R.color = COLORS[0]
     R_base_all = None
 
-    if _baseline:        
+    if _baseline:
         z = zonotope(c_z, G_z)
         U_all, X_p_all, X_m_all, _ = create_io_state(
-            d, z, v, list(set(d.keys())), drop_equal=False, angle_filter=False,
+            d,
+            z,
+            v,
+            list(set(d.keys())),
+            drop_equal=False,
+            angle_filter=False,
         )
         _, _, U_all_traj = split_io_to_trajs(
-            X_p_all, X_m_all, U_all, threshold=5, dropped=False, N=reachability_sets_size
+            X_p_all,
+            X_m_all,
+            U_all,
+            threshold=5,
+            dropped=False,
+            N=reachability_sets_size,
         )
         U_k_all = input_zonotope(U_all_traj, N=reachability_sets_size)
         M_w_base = create_M_w(U_all.shape[1], z_w, disable_progress_bar=sim)
@@ -172,7 +192,7 @@ def reachability_for_all_modes(
     trajectory: np.array = None,
     show_plot: bool = False,
     save_plot: str = None,
-    load_data: bool = False
+    load_data: bool = False,
 ):
     """Reachability for all modes
 
@@ -187,22 +207,27 @@ def reachability_for_all_modes(
     _labels = list(test_cases.values())
     _z, _ids = [], []
     _b, _z_all = [], {}
+    R_base_all_zonos = None
     z = None
     ax = None
     title = ""
 
-    for i,( key, _label) in enumerate(test_cases.items()):
-        if 'co' in key: config['original_data'] = True
-        else: config['original_data'] = False
+    for i, (key, _label) in enumerate(test_cases.items()):
+        if "co" in key:
+            config["original_data"] = True
+        else:
+            config["original_data"] = False
 
-        key = int(key.split('_')[1])
-        _sind_, d_, _, mapping = get_data(_load=load_data, config=config, test_case=(key, _label))
+        key = int(key.split("_")[1])
+        _sind_, d_, _, mapping = get_data(
+            _load=load_data, config=config, test_case=(key, _label)
+        )
         _mode = mapping[key]
-        if 'Label:' in _label:
+        if "Label:" in _label:
             title = _label.split(": ")[1].replace("_", " ").title()
             color_idx = 0
-        elif 'Cluster:' in _label:
-            if 'T' in _label:
+        elif "Cluster:" in _label:
+            if "T" in _label:
                 color_idx = 1
             else:
                 color_idx = 2
@@ -214,14 +239,18 @@ def reachability_for_all_modes(
                 if trajectory.shape[0] > 1:
                     # test scenarios
                     x0, y0 = trajectory[0, :, 0], trajectory[0, :, 1]
-                    ax.plot(x0, y0, c=COLORS[4], label='Past Trajectory', markersize=2)
-                    x1, y1 = trajectory[1,:-1, 0], trajectory[1, :-1, 1]
-                    ax.plot(x1, y1, c=COLORS[5], label='Upcoming Trajectory', markersize=2)
+                    ax.plot(x0, y0, c=COLORS[4], label="Past Trajectory", markersize=2)
+                    x1, y1 = trajectory[1, :-1, 0], trajectory[1, :-1, 1]
+                    ax.plot(
+                        x1, y1, c=COLORS[5], label="Upcoming Trajectory", markersize=2
+                    )
                 else:
                     # In this case, we have the current location and want to predict the future
                     # calculate inclusion accuracy
                     x1, y1 = trajectory[0, :-1, 0], trajectory[0, :-1, 1]
-                    ax.plot(x1, y1, c=COLORS[5], label='Upcoming Trajectory', markersize=2)
+                    ax.plot(
+                        x1, y1, c=COLORS[5], label="Upcoming Trajectory", markersize=2
+                    )
 
         # try:
         if baseline:
@@ -244,6 +273,7 @@ def reachability_for_all_modes(
         else:
             R_base, R, z = _zonos
             _b.append(R_base)
+            R_base_all_zonos = R_base_all
 
         R.color = COLORS[color_idx]
         _z.append(R)
@@ -258,14 +288,27 @@ def reachability_for_all_modes(
     if _b:
         _labels.insert(0, "Baseline")
         _z.insert(0, _b[0])
-        
-    visualize_zonotopes(_z, map=ax, save_plot=save_plot, show=show_plot, _labels=_labels, title=title)
+        _z_all.update({_label: R_all, "baselines": R_base_all_zonos})
+
+    visualize_zonotopes(
+        _z, map=ax, save_plot=save_plot, show=show_plot, _labels=_labels, title=title
+    )
     return _z, _labels, _b, _z_all
 
-def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config:dict, test_cases: dict, baseline:bool = True, show_plot: bool = False, save_plot: str = None):
+
+def scenario_func(
+    trajectory: np.array,
+    pos: np.ndarray,
+    vel: np.ndarray,
+    config: dict,
+    test_cases: dict,
+    baseline: bool = True,
+    show_plot: bool = False,
+    save_plot: str = None,
+):
     """
     Run scenario for a specific mode.
-    
+
     Parameters:
     -----------
     pos : np.ndarray
@@ -292,41 +335,61 @@ def scenario_func(trajectory: np.array ,pos: np.ndarray, vel: np.ndarray, config
     """
     _z_ = {}.fromkeys(test_cases.values())
     [_z_.update({i: []}) for i in _z_.keys()]
+    if baseline:
+        _z_["baselines"] = []
     _b_ = []
-    
+
     for i in range(0, 1):
         save_plot_ = None
-        if save_plot is not None: save_plot_ = save_plot + f'/{i}'
+        if save_plot is not None:
+            save_plot_ = save_plot + f"/{i}"
         z, l, _b, _z = reachability_for_all_modes(
-            pos=pos, vel=vel, baseline=baseline, test_cases=test_cases, config=config, trajectory=trajectory, show_plot=show_plot, save_plot=save_plot_, load_data=True
+            pos=pos,
+            vel=vel,
+            baseline=baseline,
+            test_cases=test_cases,
+            config=config,
+            trajectory=trajectory,
+            show_plot=show_plot,
+            save_plot=save_plot_,
+            load_data=True,
         )
 
         for k, v in _z.items():
             if v:
                 _z_[k].append(v[-1])
 
-        if baseline: _b_.append(_b[-1])
+        if baseline:
+            _b_.append(_b[-1])
 
     _f = open(ROOT_RESOURCES + f"/scenario.pkl", "wb")
     pickle.dump([z, l, _z, _b, _z_, _b_], _f)
     _f.close()
 
 
-def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: dict = None, test_case: tuple = (0, 'Label')):
+def get_data(
+    _load: bool = False,
+    _sind: LabelingOracleSINDData = None,
+    config: dict = None,
+    test_case: tuple = (0, "Label"),
+):
     """Calculate the data separation to each class"""
     if not _sind:
         _sind = LabelingOracleSINDData(config)
 
-    if os.path.exists(os.path.join(config['output_dir'], 'clusters')):
-        clusters_root = os.path.join(config['output_dir'], 'clusters')
+    if os.path.exists(os.path.join(config["output_dir"], "clusters")):
+        clusters_root = os.path.join(config["output_dir"], "clusters")
     else:
         clusters_root = ROOT_RESOURCES
 
-    if 'Cluster' in test_case[1]:
+    if "Cluster" in test_case[1]:
         # if _load:
-        data = load_data(filename='/data_original.pkl', filepath=clusters_root)
-        padded_batches =  load_data(filename='/data_padding.pkl', filepath=clusters_root)
-        labels = load_data(filename= f'/cluster_labels{"_original" if config["original_data"] else ""}.pkl', filepath=clusters_root)
+        data = load_data(filename="/data_original.pkl", filepath=clusters_root)
+        padded_batches = load_data(filename="/data_padding.pkl", filepath=clusters_root)
+        labels = load_data(
+            filename=f'/cluster_labels{"_original" if config["original_data"] else ""}.pkl',
+            filepath=clusters_root,
+        )
         # else:
         #     # cluster and get labels again
         #     run_clusters(config, load_embeddings=False, show_clusters=False)
@@ -340,8 +403,8 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
             padded_batches = load_data("sind_padding.pkl")
             labels = load_data("sind_labels.pkl")
         else:
-            data, padded_batches = _sind.create_chunks()
-            labels = _sind.labels(data)
+            data, padded_batches = _sind.create_chunks(save_data=True)
+            labels = _sind.labels(data, save_data=True)
 
     data = filter_paddings(data, padded_batches)
     labels = filter_paddings(labels, padded_batches)
@@ -353,28 +416,52 @@ def get_data(_load: bool = False, _sind: LabelingOracleSINDData = None, config: 
     size = len(set(labels))
     mapping = {i: i for i in range(size)}
     if -1 in labels:
-        mapping = {old_val: new_val for new_val, old_val in enumerate(sorted(set(labels)))}
+        mapping = {
+            old_val: new_val for new_val, old_val in enumerate(sorted(set(labels)))
+        }
         l = pd.DataFrame(labels)[0].map(mapping)
         labels = l.to_numpy()
 
     d_ = separate_data_to_class(data, labels, size=size)
-    print('mapping: ', mapping)
     return _sind, d_, labels, mapping
 
 
 def get_initial_conditions(data: np.ndarray):
-    chunk = 0 # first chunk
-    point = -1 # first point
-    x, y, vx, vy = data[chunk][point][0], data[chunk][point][1], data[chunk][point][2], data[chunk][point][3]
+    chunk = 0  # first chunk
+    point = -1  # first point
+    x, y, vx, vy = (
+        data[chunk][point][0],
+        data[chunk][point][1],
+        data[chunk][point][2],
+        data[chunk][point][3],
+    )
     pos = np.array([x, y])
     v = np.array([vx, vy])
     return pos, v
-         
 
-def run_scenario(trajectory: np.ndarray, config: dict, labels: list, show_path: bool = True, baseline: bool = True, show_plot: bool = False, save_plot: str = None):
+
+def run_scenario(
+    trajectory: np.ndarray,
+    config: dict,
+    labels: list,
+    show_path: bool = True,
+    baseline: bool = True,
+    show_plot: bool = False,
+    save_plot: str = None,
+):
     pos, v = get_initial_conditions(trajectory)
-    if not show_path: trajectory = None
-    scenario_func(trajectory, pos, v, config, labels, baseline=baseline, show_plot=show_plot, save_plot=save_plot)
+    if not show_path:
+        trajectory = None
+    scenario_func(
+        trajectory,
+        pos,
+        v,
+        config,
+        labels,
+        baseline=baseline,
+        show_plot=show_plot,
+        save_plot=save_plot,
+    )
 
 
 def get_test_label(test_labeling_oracle):
@@ -384,33 +471,73 @@ def get_test_label(test_labeling_oracle):
     return trajectory, label[0]
 
 
-def get_test_config(config: dict, test_name: str = ""):
+def get_test_config(config: dict, test_name: str = "", original_data: bool = False):
     config_test = config.copy()
-    config_test['data_dir'] = ROOT_RESOURCES + f'/test/{test_name}'
+    config_test["data_dir"] = ROOT_RESOURCES + f"/test/{test_name}"
+    config_test["original_data"] = original_data
     test_labeling_oracle = LabelingOracleSINDData(config_test)
 
     return test_labeling_oracle, config_test
 
+
 if __name__ == "__main__":
-     # Set up argument parsing
-    parser = argparse.ArgumentParser(description='Run clustering script with arguments.')
-    parser.add_argument('--folder', type=str, default='experiments', help='Folder that includes the trained models.')
-    parser.add_argument('--model_file', type=str, default='SINDDataset_pretrained_2024-04-27_00-11-45_KIP', help='The model to create clusters for.')
-    parser.add_argument('--index', type=int, default=2, help='The index number, which indicates the right path to the models\' folder.')
-    parser.add_argument('--index_data', type=int, default=0, help='The index number, which indicates the right path to the data folder.')
-    parser.add_argument('--original_data', type=bool, default=False, help='If the original data should be used for clustering.')
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(
+        description="Run clustering script with arguments."
+    )
+    parser.add_argument(
+        "--folder",
+        type=str,
+        default="experiments",
+        help="Folder that includes the trained models.",
+    )
+    parser.add_argument(
+        "--model_file",
+        type=str,
+        default="SINDDataset_pretrained_2024-04-27_00-11-45_KIP",
+        help="The model to create clusters for.",
+    )
+    parser.add_argument(
+        "--index",
+        type=int,
+        default=2,
+        help="The index number, which indicates the right path to the models' folder.",
+    )
+    parser.add_argument(
+        "--index_data",
+        type=int,
+        default=0,
+        help="The index number, which indicates the right path to the data folder.",
+    )
+    parser.add_argument(
+        "--original_data",
+        type=bool,
+        default=False,
+        help="If the original data should be used for clustering.",
+    )
 
     # Parse the arguments
     args = parser.parse_args()
 
-    config = load_config(folder=args.folder, model_file=args.model_file, index=args.index, index_data=args.index_data, original_data=args.original_data)
+    config = load_config(
+        folder=args.folder,
+        model_file=args.model_file,
+        index=args.index,
+        index_data=args.index_data,
+        original_data=args.original_data,
+    )
 
     for test_name in TEST_TRAJECTORIES:
         test_labeling_oracle, config_test = get_test_config(config, test_name=test_name)
 
         trajectory, l = get_test_label(test_labeling_oracle)
-        c = get_cluster(config, data_oracle=test_labeling_oracle)
-        test_cases = {f'l_{l}': f'Label: {REVERSED_LABELS[l]}', f'c_{c}': f'Transformer-based Cluster: {c}'}
+        c = get_cluster(config_test, data_oracle=test_labeling_oracle)
+        test_cases = {
+            f"l_{l}": f"Label: {REVERSED_LABELS[l]}",
+            f"c_{c}": f"Transformer-based Cluster: {c}",
+        }
 
         print(test_cases)
-        run_scenario(trajectory=trajectory, config=config, labels=test_cases, show_plot=True)
+        run_scenario(
+            trajectory=trajectory, config=config, labels=test_cases, show_plot=True
+        )

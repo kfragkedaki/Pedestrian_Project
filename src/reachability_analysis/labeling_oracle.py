@@ -36,7 +36,7 @@ class LabelingOracleSINDData(SINDData):
         self.map = SinDMap()
         self.config = config
 
-    def create_chunks(self, padding_value=0, save_data: bool = True):
+    def create_chunks(self, padding_value=0, save_data: bool = False):
         list = []
         mask_list = []
         for _, group in self.all_df.groupby("track_id"):
@@ -83,7 +83,7 @@ class LabelingOracleSINDData(SINDData):
     def labels(
         self,
         data: np.ndarray,
-        save_data: bool = True,
+        save_data: bool = False,
         disable_progress_bar: bool = False,
     ):
         _labels = []

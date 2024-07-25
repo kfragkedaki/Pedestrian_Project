@@ -285,7 +285,7 @@ def run_labels(
     COLOR_PALETTE = get_color_palette(len(set(clusters)))
 
     labeling_oracle = LabelingOracleSINDData(config)
-    labels = labeling_oracle.labels(target)
+    labels = labeling_oracle.labels(target, save_data=False)
     # Flatten the sequence_length and features dimensions
     df_target = pd.DataFrame(
         target.reshape(target.shape[0], -1)
