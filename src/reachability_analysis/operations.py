@@ -342,6 +342,9 @@ def visualize(list_of_objects: Union[List[pp.zonotope], List[np.ndarray]], ax: p
     tuple_of_projection_dimensions = [0, 1]
     if type(ax) == type(None):
         _, ax = plt.subplots()
+    
+    plt.rcParams.update({'font.size': 9})
+
     p_list, x_all = [], np.empty((0, 2))
     mypolygon = None
     for i, p in enumerate(list_of_objects):
@@ -373,9 +376,9 @@ def visualize(list_of_objects: Union[List[pp.zonotope], List[np.ndarray]], ax: p
         ax.set_ylim([np.min(x_all[:, 1])-a, a+np.max(x_all[:, 1])])
     if grid:
         ax.grid(color=(0, 0, 0), linestyle='--', linewidth=0.3)
-    ax.set_title(title)
-    ax.set_xlabel("$x$")
-    ax.set_ylabel("$y$")
+    ax.set_title('Reachable set', size=16)
+    ax.set_xlabel("$x$", size=12)
+    ax.set_ylabel("$y$", size=12)
     if equal_axis:
         ax.axis('equal')
     if _labels:
@@ -386,4 +389,4 @@ def visualize(list_of_objects: Union[List[pp.zonotope], List[np.ndarray]], ax: p
             circs.append(Line2D([0], [0], linestyle="none", marker='s', markersize=8,
                                 markerfacecolor=list_of_objects[i].color, markeredgecolor=list_of_objects[i].color))
         if len(list_of_objects) != 0:
-            ax.legend(circs, _labels_, numpoints=1, loc="upper right")
+            ax.legend(circs, _labels_, numpoints=1, loc="upper left")

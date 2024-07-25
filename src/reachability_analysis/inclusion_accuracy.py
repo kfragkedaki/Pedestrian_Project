@@ -11,6 +11,8 @@ from src.clustering.run import get_cluster, load_config
 
 import pandas as pd
 import matplotlib.ticker as tck
+import argparse
+
 
 REVERSED_LABELS = {value: key for key, value in LABELS.items()}
 
@@ -180,7 +182,7 @@ def _simulation(
                     test_cases = {f'l_{l}': f'Label: {REVERSED_LABELS[l]}', f'c_{c}': f'Cluster: {c}'}
                     print(f"Test_cases: {test_cases}")
                     _, _, _b_all, _z_all = reachability_for_all_modes(
-                        pos, vel, True, config=config, test_cases=test_cases, show_plot=True, trajectory=trajectory
+                        pos, vel, baseline=_baseline, config=config, test_cases=test_cases, show_plot=True, trajectory=trajectory
                     )
 
                     RA_l[frame].update({_ped_id: {"zonotopes": _z_all[test_cases[f'l_{l}']], "id": l}})
@@ -246,9 +248,9 @@ def _simulation(
     RA_b_acc = RA_b_acc[0 : ids_l[0]]
 
     print(f"Labeling Acurracy: {RA_l_acc / _i_l}, Clustering Accuracy: {print(RA_c_acc / _i_c)}, Baseline Accuracy: {RA_b_acc/_i_l}")
-    _f_l = open(ROOT_TEST + "/state_inclusion_acc_label.pkl", "wb")
-    _f_c = open(ROOT_TEST + "/state_inclusion_acc_clsuter.pkl", "wb")
-    _f_b = open(ROOT_TEST + "/state_inclusion_acc_baseline.pkl", "wb")
+    _f_l = open(ROOT_TEST + f"/state_inclusion_acc_label{'_original' if config['original_data'] else ''}.pkl", "wb")
+    _f_c = open(ROOT_TEST + f"/state_inclusion_acc_clsuter{'_original' if config['original_data'] else ''}.pkl", "wb")
+    _f_b = open(ROOT_TEST + f"/state_inclusion_acc_baseline{'_original' if config['original_data'] else ''}.pkl", "wb")
 
     pickle.dump(RA_c_acc / _i_c * 100, _f_c)
     pickle.dump(RA_l_acc / _i_l * 100, _f_l)
@@ -261,23 +263,33 @@ def _simulation(
 
 COLORS = [
     [60 / 255, 159 / 255, 69 / 255, 1],  # Behavioral Zonotope
-    [32 / 255, 102 / 255, 168 / 255, 1],  # Cluster Zonotope
-    [0.55, 0.14, 0.14, 1]  # Baseline Zonotope]
+    [32 / 255, 102 / 255, 168 / 255, 1],  # Transformer-based Cluster Zonotope
+    [0.55, 0.14, 0.14, 1],  # Baseline Zonotope
+    # [239/ 255, 201/ 255, 88/ 255, 1] # Cluster Zonotope
+    [0, 0, 0, 1] # Cluster Zonotope
 ]
 
 def visualize_state_inclusion_acc(
     baseline: bool = True,
     convergence: bool = True,
     side: str = "right",
+    original_data: bool = False,
+    original_and_encoded: bool = True,
 ):
     # plt.rcParams.update({'font.size': 14})
     if baseline:
-        _f_b = open(ROOT_TEST + "/state_inclusion_acc_baseline.pkl", "rb")
+        _f_b = open(ROOT_TEST + f"/state_inclusion_acc_baseline{'_original' if config['original_data'] else ''}.pkl", "rb")
         RA_b_acc = pickle.load(_f_b)
         _f_b.close()
 
-    _f_l = open(ROOT_TEST + "/state_inclusion_acc_label.pkl", "rb")
-    _f_c = open(ROOT_TEST + "/state_inclusion_acc_clsuter.pkl", "rb")
+    _f_l = open(ROOT_TEST + f"/state_inclusion_acc_label{'_original' if config['original_data'] else ''}.pkl", "rb")
+    _f_c = open(ROOT_TEST + f"/state_inclusion_acc_clsuter{'_original' if config['original_data'] else ''}.pkl", "rb")
+
+    if original_and_encoded:
+        _f_co = open(ROOT_TEST + f"/state_inclusion_acc_clsuter_original.pkl", "rb")
+        RA_co_acc = pickle.load(_f_co)
+        _f_co.close()
+
     RA_l_acc = pickle.load(_f_l)
     RA_c_acc = pickle.load(_f_c)
     _f_l.close()
@@ -288,8 +300,11 @@ def visualize_state_inclusion_acc(
     fig.subplots_adjust(top=0.96, left=0.090, bottom=0.165, right=0.93)
 
     _x = np.array(list(range(1, len(RA_l_acc) + 1))) / 10
-    ax.plot(_x, RA_c_acc, "-", color=COLORS[1], label='Clustering')
     ax.plot(_x, RA_l_acc, "--", color=COLORS[0], label='Labeling')
+    ax.plot(_x, RA_c_acc, "-", color=COLORS[1], label='Transformer-based Clustering')
+
+    if original_and_encoded:
+        ax.plot(_x, RA_co_acc, ":", color=COLORS[3], label='Clustering', lw=1.8)
 
     if baseline:
         plt.plot(_x, RA_b_acc, "-.", color=COLORS[2], label='Baseline')
@@ -308,32 +323,45 @@ def visualize_state_inclusion_acc(
 
 
     if convergence:
+        ax1 = ax.twinx()
+        ax1.set_yticks([85], ["85%"])
+        ax1.tick_params(axis="y", colors=COLORS[3], labelsize=10)
+        ax1.grid(alpha=0.6)
+        ax1.set_ylim([0, 110])
+        ax1.yaxis.set_ticks_position(side)
         ax2 = ax.twinx()
-        ax2.set_yticks([93], ["93%"])
+        ax2.set_yticks([92], ["92%"])
         ax2.tick_params(axis="y", colors=COLORS[1], labelsize=10)
         ax2.grid(alpha=0.6)
         ax2.set_ylim([0, 110])
         ax2.yaxis.set_ticks_position(side)
         ax3 = ax.twinx()
-        ax3.set_yticks([98.7], ["98%"])
+        ax3.set_yticks([98], ["98%"])
         ax3.tick_params(axis="y", colors=COLORS[2], labelsize=10)
         ax3.grid(alpha=0.6)
         ax3.set_ylim([0, 110])
         ax3.yaxis.set_ticks_position(side)
 
-    plt.savefig(ROOT_TEST  +"/accuracy.png", dpi=300, bbox_inches='tight')
+    plt.savefig(ROOT_TEST  + f"/{' original_' if original_data else ''}accuracy.png", dpi=300, bbox_inches='tight')
     plt.show()
 
-def get_state_inclusion_acc():
+def get_state_inclusion_acc(config):
     """Code to reproduce the state inclusion accuracy
 
     NOTE: This might take forever to compute. To tackle
     this, try decreasing the value of the 'frames' argument.
     """
-    config = load_config()
-    _simulation(load_data=False, config=config, _baseline=True)
-    visualize_state_inclusion_acc(baseline=True, convergence=True)
+    _simulation(load_data=False, config=config, _baseline=False)
+    visualize_state_inclusion_acc(baseline=True, convergence=True, original_data=config['original_data'], original_and_encoded=True)
 
 
 if __name__ == "__main__":
-    get_state_inclusion_acc()
+    config = load_config()
+    parser = argparse.ArgumentParser(description='Run clustering script with arguments.')
+    parser.add_argument('--original_data', type=bool, default=False, help='If the original data should be used for clustering.')
+    # Parse the arguments
+    args = parser.parse_args()
+
+
+    config['original_data'] = args.original_data
+    get_state_inclusion_acc(config)

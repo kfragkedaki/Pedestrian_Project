@@ -4,8 +4,17 @@ from shapely.geometry import Polygon, LineString, Point
 from typing import List, Union
 from src.reachability_analysis.labeling_oracle import LABELS
 from itertools import chain
+import pandas as pd
 
 
+def filter_paddings( dataset: np.ndarray, padded_batches: np.ndarray):
+    # Find batches with no padding
+    unpadded_batches = np.all(padded_batches, axis=1)  # True only for batches with all 1s (no padding)
+
+    # Filter the dataset to keep only completely unpadded batches
+    filtered_data = dataset[unpadded_batches]
+
+    return filtered_data
 
 def separate_data_to_class(data: np.ndarray, classification: np.ndarray, size: int) -> np.ndarray:
     """ Separate the entire dataset into a list[list] where each nested list contain 
@@ -110,24 +119,35 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
         _data = np.concatenate([data[cls] for cls in classification if cls in data], axis=0)
     else:
         _data = data.get(classification, np.array([]))
-
+    
     X_m, X_p, U = np.array([]), np.array([]), np.array([])
-    # _ped_poly = Polygon(pp.to_V(measurement))
-    # _angle_set = np.array([np.arctan2(*vel)-np.pi/8, np.arctan2(*vel)+np.pi/8]) if angle_filter else np.array([np.arctan2(*vel)-np.pi, np.arctan2(*vel)+np.pi])
+    X_m_all, X_p_all, U_all = np.array([]), np.array([]), np.array([])
 
+    _ped_poly = Polygon(pp.to_V(measurement))
+    _angle_set = np.array([np.arctan2(vel[1], vel[0])-(np.pi/8), np.arctan2(vel[1], vel[0])+(np.pi/8)]) if angle_filter else np.array([-np.pi, +np.pi])
     for _t in _data:
         _x, _y = _t[:, 0], _t[:, 1]
         _vx, _vy = _t[:, 2], _t[:, 3]
-        # _v_avg = np.array([sum(_vx[0:3]), sum(_vy[0:3])])
-        # _line = LineString(list(zip(_x, _y)))
-        # if (_line.intersects(_ped_poly) and __in_between(np.arctan2(_v_avg[1], _v_avg[0]), _angle_set)) or clustering:
+        _line = LineString(list(zip(_x, _y)))
         _X = np.array([_x, _y])
         _X_p, _X_m = _X[:, 1:], _X[:, :-1]
         _U = np.array([_vx, _vy])[:, :-1]
-        X_p = np.hstack([X_p, _X_p]) if X_p.size else _X_p
-        X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
-        U = np.hstack([U, _U]) if U.size else _U
 
+        if (_line.intersects(_ped_poly) and __in_between(np.arctan2(np.mean(_vy[:3]), np.mean(_vx[:3])), _angle_set)):
+            X_p = np.hstack([X_p, _X_p]) if X_p.size else _X_p
+            X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
+            U = np.hstack([U, _U]) if U.size else _U
+        else:
+            X_p_all = np.hstack([X_p_all, _X_p]) if X_p_all.size else _X_p
+            X_m_all = np.hstack([X_m_all, _X_m]) if X_m_all.size else _X_m
+            U_all = np.hstack([U_all, _U]) if U_all.size else _U
+        
+    if X_p.size == 0:
+        X_p = X_p_all
+        X_m = X_m_all
+        U = U_all
+
+    U_d = U
     if drop_equal:
         X_p, _ids = __drop_equal(X_p)
         X_m = np.delete(X_m, _ids, axis=1)
@@ -136,9 +156,17 @@ def create_io_state(data: dict, measurement: pp.zonotope, vel: np.ndarray, class
     return [U_d, X_p, X_m, U]
 
 
-def __in_between(val: float, range: np.ndarray):
-    assert range.shape[0] == 2
-    return (val > range[0] and val < range[1])
+def __in_between(val, angle_range):
+    """ Check if the angle 'val' is within the range defined by 'angle_range'. """
+    assert angle_range.shape[0] == 2
+    angle_min = angle_range[0]
+    angle_max = angle_range[1]
+
+    if angle_min < angle_max:
+        return angle_min <= val <= angle_max
+    else:  # Handle the wrap-around case
+        return val >= angle_min or val <= angle_max
+
 
 def __drop_equal(arr: np.ndarray):
     _d, _ids = {}, np.array([], dtype=int)

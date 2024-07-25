@@ -163,9 +163,10 @@ def get_embedding(config: dict, data_oracle: LabelingOracleSINDData):
 
 
 def get_cluster(config:dict, data_oracle: LabelingOracleSINDData):
-    embedding = get_embedding(config, data_oracle)["embeddings"][0]
+    if not config['original_data']: data = get_embedding(config, data_oracle)["embeddings"][0]
+    else: data = get_embedding(config, data_oracle)["targets"][0]
     nn_model = AnnoyModel(config=config)
-    return nn_model.get(embedding)
+    return nn_model.get(data)
 
 def run_clusters(config: dict = None, load_embeddings: bool = True, load_clusters: bool = False,
                  min_cluster_size: int = 5, min_samples: int = 30,
