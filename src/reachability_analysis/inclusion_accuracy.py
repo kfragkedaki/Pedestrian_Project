@@ -140,7 +140,7 @@ def generate_input_for_sim(
                         )
         return _concat_data
     else:
-        _file = open(ROOT_TEST + "/sim_dict.json", "rb")
+        _file = open(ROOT_TEST + "sim_dict.json", "rb")
         _new_data = pickle.load(_file)
         _file.close()
     return _new_data
@@ -227,14 +227,17 @@ def _simulation(
                         test_cases=test_cases,
                         show_plot=True,
                         trajectory=trajectory,
+                        load_data=True
                     )
 
-                    RA_l[frame].update(
+                    if f"l_{l}" in test_cases: 
+                        RA_l[frame].update(
                         {_ped_id: {"zonotopes": _z_all[test_cases[f"l_{l}"]], "id": l}}
                     )
-                    RA_c[frame].update(
-                        {_ped_id: {"zonotopes": _z_all[test_cases[f"c_{c}"]], "id": c}}
-                    )
+                    if f"c_{c}" in test_cases:
+                        RA_c[frame].update(
+                            {_ped_id: {"zonotopes": _z_all[test_cases[f"c_{c}"]], "id": c}}
+                        )
                     if original_data:
                         RA_co[frame].update(
                             {
@@ -331,9 +334,9 @@ def _simulation(
     print(
         f"Labeling Acurracy: {RA_l_acc / _i_l}, T-f Clustering Accuracy: {print(RA_c_acc / _i_c)}, Baseline Accuracy: {RA_b_acc/_i_b}"
     )
-    _f_l = open(ROOT_TEST + f"/state_inclusion_acc_label.pkl", "wb")
-    _f_c = open(ROOT_TEST + f"/state_inclusion_acc_clsuter.pkl", "wb")
-    _f_b = open(ROOT_TEST + f"/state_inclusion_acc_baseline.pkl", "wb")
+    _f_l = open(ROOT_TEST + "state_inclusion_acc_label.pkl", "wb")
+    _f_c = open(ROOT_TEST + "state_inclusion_acc_clsuter.pkl", "wb")
+    _f_b = open(ROOT_TEST + "state_inclusion_acc_baseline.pkl", "wb")
 
     pickle.dump(RA_c_acc / _i_c * 100, _f_c)
     pickle.dump(RA_l_acc / _i_l * 100, _f_l)
@@ -345,7 +348,7 @@ def _simulation(
 
     if original_data:
         print(f"Original Clustering Accuracy: {RA_co_acc / _i_co}")
-        _f_co = open(ROOT_TEST + f"/state_inclusion_acc_cluster_original.pkl", "wb")
+        _f_co = open(ROOT_TEST + "state_inclusion_acc_cluster_original.pkl", "wb")
         pickle.dump(RA_co_acc / _i_co * 100, _f_co)
         _f_co.close()
 
@@ -367,15 +370,15 @@ def visualize_state_inclusion_acc(
 ):
     # plt.rcParams.update({'font.size': 14})
     if baseline:
-        _f_b = open(ROOT_TEST + f"/state_inclusion_acc_baseline.pkl", "rb")
+        _f_b = open(ROOT_TEST + "state_inclusion_acc_baseline.pkl", "rb")
         RA_b_acc = pickle.load(_f_b)
         _f_b.close()
 
-    _f_l = open(ROOT_TEST + f"/state_inclusion_acc_label.pkl", "rb")
-    _f_c = open(ROOT_TEST + f"/state_inclusion_acc_clsuter.pkl", "rb")
+    _f_l = open(ROOT_TEST + "state_inclusion_acc_label.pkl", "rb")
+    _f_c = open(ROOT_TEST + "state_inclusion_acc_clsuter.pkl", "rb")
 
     if original_data:
-        _f_co = open(ROOT_TEST + f"/state_inclusion_acc_clsuter_original.pkl", "rb")
+        _f_co = open(ROOT_TEST + "state_inclusion_acc_cluster_original.pkl", "rb")
         RA_co_acc = pickle.load(_f_co)
         _f_co.close()
 
@@ -430,7 +433,7 @@ def visualize_state_inclusion_acc(
         ax3.set_ylim([0, 110])
         ax3.yaxis.set_ticks_position(side)
 
-    plt.savefig(ROOT_TEST + f"/accuracy.png", dpi=300, bbox_inches="tight")
+    plt.savefig(ROOT_TEST + "accuracy.png", dpi=300, bbox_inches="tight")
     plt.show()
 
 
