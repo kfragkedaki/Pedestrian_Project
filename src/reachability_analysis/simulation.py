@@ -99,7 +99,7 @@ def reachability_for_specific_position_and_mode(
 
     G_z = np.array([[2, 0, 1], [0, 2, 0.6]])
     z = zonotope(c_z, G_z)
-    U, X_p, X_m, _ = create_io_state(d, z, v, l, c_z, drop_equal=False, angle_filter=True)
+    U, X_p, X_m, _ = create_io_state(d, z, v, l, drop_equal=False, angle_filter=True)
 
     _, _, U_traj = split_io_to_trajs(
         X_p, X_m, U, threshold=5, dropped=False, N=reachability_sets_size
@@ -130,7 +130,6 @@ def reachability_for_specific_position_and_mode(
             z,
             v,
             list(set(d.keys())),
-            c_z,
             drop_equal=False,
             angle_filter=False,
         )
@@ -404,6 +403,7 @@ def get_data(
             padded_batches = load_data("sind_padding.pkl")
             labels = load_data("sind_labels.pkl")
         else:
+            _sind.load_data()
             data, padded_batches = _sind.create_chunks(save_data=True)
             labels = _sind.labels(data, save_data=True)
 
@@ -477,7 +477,6 @@ def get_test_config(config: dict, test_name: str = "", original_data: bool = Fal
     config_test["data_dir"] = ROOT_RESOURCES + f"/test/{test_name}"
     config_test["original_data"] = original_data
     test_labeling_oracle = LabelingOracleSINDData(config_test)
-
     return test_labeling_oracle, config_test
 
 

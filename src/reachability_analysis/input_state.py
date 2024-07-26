@@ -167,10 +167,10 @@ def create_io_state(
             X_p = np.hstack([X_p, _X_p]) if X_p.size else _X_p
             X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
             U = np.hstack([U, _U]) if U.size else _U
-        else:
-            X_p_all = np.hstack([X_p_all, _X_p]) if X_p_all.size else _X_p
-            X_m_all = np.hstack([X_m_all, _X_m]) if X_m_all.size else _X_m
-            U_all = np.hstack([U_all, _U]) if U_all.size else _U
+            
+        X_p_all = np.hstack([X_p_all, _X_p]) if X_p_all.size else _X_p
+        X_m_all = np.hstack([X_m_all, _X_m]) if X_m_all.size else _X_m
+        U_all = np.hstack([U_all, _U]) if U_all.size else _U
 
     if X_p.size == 0:
         X_p = X_p_all

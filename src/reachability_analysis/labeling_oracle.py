@@ -30,7 +30,7 @@ class LabelingOracleSINDData(SINDData):
     Extended dataset class for SIND dataset with additional functionalities.
     """
 
-    def __init__(self, config: dict, n_proc=None):
+    def __init__(self, config: dict, n_proc = None):
         # Initialize the base class with all its setup
         super().__init__(config, n_proc)
         self.map = SinDMap()
@@ -225,4 +225,4 @@ def angle_between_angles(a1: float, a2: float):
     """
     v = np.array([np.cos(a1), np.sin(a1)])
     w = np.array([np.cos(a2), np.sin(a2)])
-    return np.math.atan2(np.linalg.det([v, w]), np.dot(v, w))
+    return np.arctan2(np.linalg.det([v, w]), np.dot(v, w))
