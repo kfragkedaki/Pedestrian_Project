@@ -6,6 +6,7 @@ from src.datasets.masked_datasets import ImputationDataset, collate_unsuperv
 import os
 import torch
 
+
 def load_task_datasets(config):
     """For the task specified in the configuration returns the corresponding combination of
     Task-specific Dataset class and collate function."""
@@ -55,12 +56,14 @@ def load_data(config, logger):
     )
     train_data = my_data.feature_df.loc[train_indices]
     val_data = my_data.feature_df.loc[val_indices]
-    
+
     if config["val_ratio"] == 1:
         # save original data for evaluation
-        outputs_filepath = os.path.join(os.path.join(config["output_dir"], "original_data.pt"))
-        torch.save({'val_data': val_data}, outputs_filepath)
-    
+        outputs_filepath = os.path.join(
+            os.path.join(config["output_dir"], "original_data.pt")
+        )
+        torch.save({"val_data": val_data}, outputs_filepath)
+
     # Pre-process features
     if config["data_normalization"] != "none":
         logger.info("Normalizing data ...")

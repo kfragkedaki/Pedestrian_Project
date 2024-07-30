@@ -157,10 +157,12 @@ class Map:
         padding_masks=None,
         title: str = "",
     ):
-        fig = plt.figure(figsize=(7*3, 6))  # Wider figure to accommodate three subplots
-        ax1 = fig.add_subplot(1, 3, 1, projection='3d')
+        fig = plt.figure(
+            figsize=(7 * 3, 6)
+        )  # Wider figure to accommodate three subplots
+        ax1 = fig.add_subplot(1, 3, 1, projection="3d")
         ax2 = fig.add_subplot(1, 3, 2)
-        ax3 = fig.add_subplot(1, 3, 3, projection='3d')
+        ax3 = fig.add_subplot(1, 3, 3, projection="3d")
 
         if map_overlay:
             self.plot_areas(alpha=alpha, ax=ax2)
@@ -173,15 +175,21 @@ class Map:
                 data = data[non_masked]
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
-            vx, vy = np.array(data[:, 2]), np.array(data[:, 3])  # Assuming these are velocities
-            ax, ay = np.array(data[:, 4]), np.array(data[:, 5])  # Assuming these are accelerations
+            vx, vy = np.array(data[:, 2]), np.array(
+                data[:, 3]
+            )  # Assuming these are velocities
+            ax, ay = np.array(data[:, 4]), np.array(
+                data[:, 5]
+            )  # Assuming these are accelerations
             v = np.sqrt(vx**2 + vy**2)
             a = np.sqrt(ax**2 + ay**2)
 
             # Define label, plot data with or without adding it to the legend
             label = f"Cluster {color_id}"
             if label not in used_labels:
-                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
+                ax2.plot(
+                    x, y, c=colors[color_id], alpha=alpha_trajectories, label=label
+                )
                 used_labels.add(label)
             else:
                 ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)
@@ -190,7 +198,7 @@ class Map:
             ax3.plot(x, y, zs=a, c=colors[color_id])
             ax2.scatter(x[0], y[0], c="green", s=size_points)
             ax2.scatter(x[-1], y[-1], c="red", s=size_points)
-            
+
         ax2.legend(title="Cluster")
         ax1.set_title("Velocity profile of trajectories")
         ax3.set_title("Acceleration profile of trajectories")
@@ -213,10 +221,12 @@ class Map:
         padding_masks=None,
         title: str = "",
     ):
-        fig = plt.figure(figsize=(7*3, 6))  # Wider figure to accommodate three subplots
-        ax1 = fig.add_subplot(1, 3, 1, projection='3d')
+        fig = plt.figure(
+            figsize=(7 * 3, 6)
+        )  # Wider figure to accommodate three subplots
+        ax1 = fig.add_subplot(1, 3, 1, projection="3d")
         ax2 = fig.add_subplot(1, 3, 2)
-        ax3 = fig.add_subplot(1, 3, 3, projection='3d')
+        ax3 = fig.add_subplot(1, 3, 3, projection="3d")
 
         if map_overlay:
             self.plot_areas(alpha=alpha, ax=ax2)
@@ -229,15 +239,21 @@ class Map:
                 data = data[non_masked]
 
             x, y = np.array(data[:, 0]), np.array(data[:, 1])
-            vx, vy = np.array(data[:, 2]), np.array(data[:, 3])  # Assuming these are velocities
-            ax, ay = np.array(data[:, 4]), np.array(data[:, 5])  # Assuming these are accelerations
+            vx, vy = np.array(data[:, 2]), np.array(
+                data[:, 3]
+            )  # Assuming these are velocities
+            ax, ay = np.array(data[:, 4]), np.array(
+                data[:, 5]
+            )  # Assuming these are accelerations
             v = np.sqrt(vx**2 + vy**2)
             a = np.sqrt(ax**2 + ay**2)
 
             # Define label, plot data with or without adding it to the legend
             label = f"Cluster {color_id}"
             if label not in used_labels:
-                ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories, label=label)
+                ax2.plot(
+                    x, y, c=colors[color_id], alpha=alpha_trajectories, label=label
+                )
                 used_labels.add(label)
             else:
                 ax2.plot(x, y, c=colors[color_id], alpha=alpha_trajectories)
@@ -246,8 +262,8 @@ class Map:
             ax3.plot(x, y, zs=a, c=colors[color_id])
             ax2.scatter(x[0], y[0], c="green", s=size_points)
             ax2.scatter(x[-1], y[-1], c="red", s=size_points)
-            
-        ax2.legend(title="Cluster", bbox_to_anchor=(1.23, 1), loc='upper left')
+
+        ax2.legend(title="Cluster", bbox_to_anchor=(1.23, 1), loc="upper left")
         ax1.set_title("Velocity profile of trajectories")
         ax3.set_title("Acceleration profile of trajectories")
 
