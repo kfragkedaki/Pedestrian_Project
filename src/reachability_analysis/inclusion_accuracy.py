@@ -110,31 +110,44 @@ def generate_input_for_sim(
                 num_chunks = (
                     len(x) // input_len
                 )  # Calculate how many full chunks can be made
-                for _i in range(num_chunks):
-                    start_idx = _i * input_len
-                    end_idx = start_idx + input_len
-                    _x, _y = np.array(x.iloc[start_idx:end_idx]), np.array(
-                        y.iloc[start_idx:end_idx]
+                for _i in range(num_chunks-1):
+                    start_past_idx = _i * input_len
+                    end_past_idx = start_past_idx + input_len
+                    _x_past, _y_past = np.array(x.iloc[start_past_idx:end_past_idx]), np.array(
+                        y.iloc[start_past_idx:end_past_idx]
                     )
-                    _vx, _vy = np.array(vx.iloc[start_idx:end_idx]), np.array(
-                        vy.iloc[start_idx:end_idx]
+                    _vx_past, _vy_past = np.array(vx.iloc[start_past_idx:end_past_idx]), np.array(
+                        vy.iloc[start_past_idx:end_past_idx]
                     )
-                    _ax, _ay = np.array(ax.iloc[start_idx:end_idx]), np.array(
-                        ay.iloc[start_idx:end_idx]
+                    _ax_past, _ay_past = np.array(ax.iloc[start_past_idx:end_past_idx]), np.array(
+                        ay.iloc[start_past_idx:end_past_idx]
                     )
-                    _frame = _f.values[start_idx]
+
+                    start_future_idx = end_past_idx
+                    end_future_idx = start_future_idx + input_len
+                    _x_future, _y_future = np.array(x.iloc[start_future_idx:end_future_idx]), np.array(
+                        y.iloc[start_future_idx:end_future_idx]
+                    )
+                    _vx_future, _vy_future = np.array(vx.iloc[start_future_idx:end_future_idx]), np.array(
+                        vy.iloc[start_future_idx:end_future_idx]
+                    )
+                    _ax_future, _ay_future = np.array(ax.iloc[start_future_idx:end_future_idx]), np.array(
+                        ay.iloc[start_future_idx:end_future_idx]
+                    )
+                    _frame = _f.values[end_past_idx]
+
                     if (
                         _frame in _concat_data
                     ):  # Make sure the frame index exists in the dictionary
                         _concat_data[_frame].update(
                             {
                                 _j: {
-                                    "x": _x,
-                                    "y": _y,
-                                    "vx": _vx,
-                                    "vy": _vy,
-                                    "ax": _ax,
-                                    "ay": _ay,
+                                    "x": np.array([_x_past, _x_future]),
+                                    "y": np.array([_y_past, _y_future]),
+                                    "vx": np.array([_vx_past, _vx_future]),
+                                    "vy": np.array([_vy_past, _vy_future]),
+                                    "ax": np.array([_ax_past, _ax_future]),
+                                    "ay": np.array([_ay_past, _ay_future]),
                                 }
                             }
                         )
@@ -169,13 +182,25 @@ def _simulation(
     _data, _RA_data, _last_frame = load_data_for_simulation(
         input_len=input_len, load_data=False
     )
-    test_labeling_oracle, config_test = get_test_config(
+    test_labeling_oracle = get_test_config(
         config, test_name=DATASET, original_data=False
     )
     if original_data:
-        test_labeling_oracle_original, config_test_original = get_test_config(
+        test_labeling_oracle_original = get_test_config(
             config, test_name=DATASET, original_data=True
         )
+
+    data_statistics = {
+        "baseline": {
+            "memory_constraint": 0,
+            'data_constraint': 0,
+        },
+        "total_count": 0,
+        "distances_failed": {
+            "T-b Cluster": 0,
+            "Cluster": 0
+        }
+    }
 
     if not load_data:
         RA_l = {}.fromkeys(list(range(0, _last_frame)))
@@ -191,44 +216,72 @@ def _simulation(
             for _ped_id, state in _data[frame].items():
                 if _ped_id in _RA:
                     print(f"Pedestrian: {_ped_id}")
-                    pos = np.array([state["x"], state["y"]])
-                    vel = np.array([state["vx"], state["vy"]])
-                    _chunk = pd.DataFrame(_RA[_ped_id])
-                    _chunk["track_id"] = 0
+                    historical_trajectory = {key: value[0, :] for key, value in _RA[_ped_id].items()}
+                    future_trajectory = {key: value[1, :] for key, value in _RA[_ped_id].items()}
 
-                    test_labeling_oracle.all_df = _chunk.set_index("track_id")
+                    pos = np.array([historical_trajectory["x"][-1], historical_trajectory["y"][-1]])
+                    vel = np.array([historical_trajectory["vx"][-1], historical_trajectory["vy"][-1]])
+                    past = pd.DataFrame(historical_trajectory)
+                    past["track_id"] = 0
+
+                    future = pd.DataFrame(future_trajectory)
+                    future["track_id"] = 1
+                    trajectory = pd.concat([past, future])
+
+                    test_labeling_oracle.all_df = trajectory.set_index("track_id")
                     test_labeling_oracle.feature_df = test_labeling_oracle.all_df[test_labeling_oracle.feature_names]
                     test_labeling_oracle.all_IDs =  test_labeling_oracle.all_df.index.unique()
 
-                    trajectory, l = get_test_label(test_labeling_oracle)
-                    c = get_cluster(config_test, test_labeling_oracle)
+                    plotted_path, l = get_test_label(test_labeling_oracle)
+                    c, distance_c = get_cluster(config, test_labeling_oracle)
                     test_cases = {
                         f"l_{l}": f"Label: {REVERSED_LABELS[l]}",
                         f"c_{c}": f"T-b Cluster: {c}",
                     }
 
+                    if distance_c > 3:
+                        data_statistics["distances_failed"].update({"T-b Cluster": data_statistics["distances_failed"]["T-b Cluster"]+1})
+
                     if original_data:
-                        test_labeling_oracle_original.all_df = _chunk.set_index("track_id")
+                        test_labeling_oracle_original.all_df = trajectory.set_index("track_id")
                         test_labeling_oracle_original.feature_df = test_labeling_oracle_original.all_df[
                             test_labeling_oracle_original.feature_names]
                         test_labeling_oracle_original.all_IDs = test_labeling_oracle_original.all_df.index.unique()
 
-                        co = get_cluster(
-                            config_test_original, test_labeling_oracle_original
+                        co, distance_co = get_cluster(
+                            config, test_labeling_oracle_original
                         )
                         test_cases[f"co_{co}"] = f"Cluster: {co}"
 
+                        if distance_co > 3:
+                            print("Clustering: No cluster found with relatively low distance. Distance: ", distance_co)
+                            print(f"Data Statistics: {data_statistics['distances_failed']}")
+                            data_statistics["distances_failed"].update(
+                                {"Cluster": data_statistics["distances_failed"]["Cluster"] + 1})
+                            continue
+
+                    if distance_c > 3:
+                        print("T-b-Clustering: No cluster found with relatively low distance. Distance: ", distance_c)
+                        print(f"Data Statistics: {data_statistics['distances_failed']}")
+                        continue
+
                     print(f"Test_cases: {test_cases}")
-                    _, _, _, _z_all = reachability_for_all_modes(
+                    res_zontopes = reachability_for_all_modes(
                         pos,
                         vel,
                         baseline=_baseline,
                         config=config,
                         test_cases=test_cases,
                         show_plot=True,
-                        trajectory=trajectory,
-                        load_data=True
+                        trajectory=plotted_path,
+                        load_data=True,
+                        data_statistics=data_statistics,
+                        title=f"Pedestrian {_ped_id}, Frame: {frame}, pos {pos}"
                     )
+                    if res_zontopes is None:
+                        continue
+                    
+                    _, _, _, _z_all = res_zontopes
 
                     if f"l_{l}" in test_cases: 
                         RA_l[frame].update(
@@ -253,15 +306,15 @@ def _simulation(
 
             if frame % checkpoint and frame != 0:
                 _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "wb")
-                pickle.dump([RA_l, RA_c, RA_co, RA_b, (frame, _last_frame)], _f)
+                pickle.dump([RA_l, RA_c, RA_co, RA_b, data_statistics, (frame, _last_frame)], _f)
                 _f.close()
 
         _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "wb")
-        pickle.dump([RA_l, RA_c, RA_co, RA_b, (frame, _last_frame)], _f)
+        pickle.dump([RA_l, RA_c, RA_co, RA_b, data_statistics, (frame, _last_frame)], _f)
         _f.close()
     else:
         _f = open(ROOT_TEST + DATASET + "_accuracy.pkl", "rb")
-        RA_l, RA_c, RA_co, RA_b, _frames = pickle.load(_f)
+        RA_l, RA_c, RA_co, RA_b, data_statistics, _frames = pickle.load(_f)
         _f.close()
 
     RA_b_acc = np.array([0] * input_len)
@@ -282,7 +335,8 @@ def _simulation(
                     _z_c_all = RA_c[frame][_ped_id]["zonotopes"]
                 if RA_co[frame]:
                     _z_co_all = RA_co[frame][_ped_id]["zonotopes"]
-                if _baseline:
+
+                if RA_b[frame] and _baseline:
                     _b = RA_b[frame][_ped_id]
 
                 for k in range(0, input_len - 1):
@@ -311,7 +365,7 @@ def _simulation(
                             i_l[k] += 1
 
                         # Baseline
-                        if _baseline:
+                        if RA_b[frame] and _baseline:
                             _inside = int(
                                 is_inside(_b[k], pos_k)
                             )  # Does not have all zonotopes
@@ -331,8 +385,12 @@ def _simulation(
     RA_b_acc, _i_b = RA_b_acc[0 : ids_b[0]], i_b[0 : ids_b[0]]
     RA_co_acc, _i_co = RA_co_acc[0 : ids_co[0]], i_co[0 : ids_co[0]]
 
+    print(f"Data Statistics: {data_statistics}")
+    _f_stats = open(ROOT_TEST + "state_inclusion_acc_statistics.pkl", "wb")
+    pickle.dump(data_statistics, _f_stats)
+
     print(
-        f"Labeling Acurracy: {RA_l_acc / _i_l}, T-f Clustering Accuracy: {print(RA_c_acc / _i_c)}, Baseline Accuracy: {RA_b_acc/_i_b}"
+        f"Labeling Acurracy: {RA_l_acc / _i_l}, T-f Clustering Accuracy: {RA_c_acc / _i_c}, Baseline Accuracy: {RA_b_acc/_i_b}"
     )
     _f_l = open(ROOT_TEST + "state_inclusion_acc_label.pkl", "wb")
     _f_c = open(ROOT_TEST + "state_inclusion_acc_clsuter.pkl", "wb")
@@ -391,15 +449,15 @@ def visualize_state_inclusion_acc(
     fig.set_size_inches(8 / 1.5, 4.2 / 1.5)
     fig.subplots_adjust(top=0.96, left=0.090, bottom=0.165, right=0.93)
 
-    _x = np.array(list(range(1, len(RA_l_acc) + 1))) / 10
-    ax.plot(_x, RA_l_acc, "--", color=COLORS[0], label="Labeling")
-    ax.plot(_x, RA_c_acc, "-", color=COLORS[1], label="Transformer-based Clustering")
+    _x = np.array(list(range(2, len(RA_l_acc) + 1))) / 10
+    ax.plot(_x, RA_l_acc[1:], "--", color=COLORS[0], label="Labeling")
+    ax.plot(_x, RA_c_acc[1:], "-", color=COLORS[1], label="Transformer-based Clustering")
 
     if original_data:
-        ax.plot(_x, RA_co_acc, ":", color=COLORS[3], label="Clustering", lw=1.8)
+        ax.plot(_x, RA_co_acc[1:], ":", color=COLORS[3], label="Clustering", lw=1.8)
 
     if baseline:
-        plt.plot(_x, RA_b_acc, "-.", color=COLORS[2], label="Baseline")
+        plt.plot(_x, RA_b_acc[1:], "-.", color=COLORS[2], label="Baseline")
 
     ax.set_ylim([0, 110]), ax.set_xlim([0, 5])
     ax.yaxis.set_minor_locator(tck.AutoMinorLocator())
@@ -421,16 +479,20 @@ def visualize_state_inclusion_acc(
         ax1.set_ylim([0, 110])
         ax1.yaxis.set_ticks_position(side)
         ax2 = ax.twinx()
-        ax2.set_yticks([92], ["92%"])
+        ax2.set_yticks([96], ["96%"])
         ax2.tick_params(axis="y", colors=COLORS[1], labelsize=10)
         ax2.grid(alpha=0.6)
         ax2.set_ylim([0, 110])
         ax2.yaxis.set_ticks_position(side)
         ax3 = ax.twinx()
-        ax3.set_yticks([98], ["98%"])
+        ax3.set_yticks([99], ["99%"])
         ax3.tick_params(axis="y", colors=COLORS[2], labelsize=10)
         ax3.grid(alpha=0.6)
         ax3.set_ylim([0, 110])
+        # Adjust label position by offsetting
+        for label in ax3.get_yticklabels():
+            label.set_verticalalignment('bottom')  # Adjusts vertical alignment to move label up
+
         ax3.yaxis.set_ticks_position(side)
 
     plt.savefig(ROOT_TEST + "accuracy.png", dpi=300, bbox_inches="tight")

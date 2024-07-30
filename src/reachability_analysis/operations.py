@@ -430,7 +430,7 @@ def visualize(
         ax.set_ylim([np.min(x_all[:, 1]) - a, a + np.max(x_all[:, 1])])
     if grid:
         ax.grid(color=(0, 0, 0), linestyle="--", linewidth=0.3)
-    ax.set_title("Reachable set", size=16)
+    ax.set_title(title, size=16)
     ax.set_xlabel("$x$", size=12)
     ax.set_ylabel("$y$", size=12)
     if equal_axis:
@@ -452,4 +452,4 @@ def visualize(
                 )
             )
         if len(list_of_objects) != 0:
-            ax.legend(circs, _labels_, numpoints=1, loc="upper left")
+            ax.legend(circs, _labels_, numpoints=1, loc="lower left")

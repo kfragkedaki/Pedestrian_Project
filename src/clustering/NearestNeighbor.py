@@ -109,4 +109,4 @@ class AnnoyModel(ApproximateNearestNeighbors):
         indexes, distances = self.query(data)
         predicted_cluster = self.clusters[indexes[0]]
 
-        return predicted_cluster
+        return predicted_cluster, distances[0]

@@ -227,21 +227,22 @@ def get_embedding(config: dict, data_oracle: LabelingOracleSINDData):
     return embedding_data
 
 
-def get_cluster(config: dict, data_oracle: LabelingOracleSINDData):
+def get_cluster(config: dict, data_oracle: LabelingOracleSINDData, chunk:int = 0):
     """
     config: dict - configuration dictionary that includes the model and data paths of the training data
     data_oracle: LabelingOracleSINDData - data oracle that includes the data pth for testing trajectory
     """
-    if not config["original_data"]:
-        data = get_embedding(config, data_oracle)["embeddings"][0]
+    if not data_oracle.config["original_data"]:
+        transformed_data = get_embedding(config, data_oracle)
+        data = transformed_data["embeddings"][0]
     else:
-        data = data_oracle.create_chunks(save_data=False)[0][0]
+        data = data_oracle.create_chunks(save_data=False)[0]
 
     if data.ndim == 3:
-        print("Trajectory data shape need to be of shape  (1, n, m)") 
-        data = data[0]
+        print(f"Trajectory data shape need to be of shape  (n, m). Get {chunk} dimension as past trajectory")
+        data = data[chunk]
 
-    nn_model = AnnoyModel(config=config)
+    nn_model = AnnoyModel(config=data_oracle.config)
     return nn_model.get(data)
 
 

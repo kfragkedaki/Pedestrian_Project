@@ -27,8 +27,6 @@ from src.reachability_analysis.reachability import LTI_reachability
 from src.reachability_analysis.input_state import (
     create_io_state,
     separate_data_to_class,
-    structure_input_data,
-    structure_input_data_for_clusters,
     split_io_to_trajs,
     filter_paddings,
 )
@@ -52,12 +50,11 @@ COLORS = [
     # [52/255 , 78/255 , 92/255 ], # Position
 ]
 
-TEST_TRAJECTORIES = [
-    "cross_illegal_8_11_1",
-    "crossing_now_7_28_1",
-    "cross_left_8_6_4",
-]
-
+TEST_TRAJECTORIES = {
+    'cross_illegal': 4,
+    'not_cross': 26,
+    'crossing_now': 3,
+}
 
 def reachability_for_specific_position_and_mode(
     pos: np.ndarray = np.array([-3.4, 28.3]),
@@ -71,6 +68,9 @@ def reachability_for_specific_position_and_mode(
     d: dict = None,
     sim: bool = False,
     sind: LabelingOracleSINDData = None,
+    method: str = "",
+    data_statistics: dict = None,
+    clustering: bool = False
 ):
     """Get reachable set for a specific position, mode and starting velocity
 
@@ -99,8 +99,11 @@ def reachability_for_specific_position_and_mode(
 
     G_z = np.array([[2, 0, 1], [0, 2, 0.6]])
     z = zonotope(c_z, G_z)
-    U, X_p, X_m, _ = create_io_state(d, z, v, l, drop_equal=False, angle_filter=True)
-
+    res = create_io_state(d, z, v, l, drop_equal=False, angle_filter=True, method=method, data_statistics=data_statistics, clustering=clustering)
+    if res is None:
+        return
+    
+    U, X_p, X_m, _ = res
     _, _, U_traj = split_io_to_trajs(
         X_p, X_m, U, threshold=5, dropped=False, N=reachability_sets_size
     )
@@ -124,15 +127,22 @@ def reachability_for_specific_position_and_mode(
     R_base_all = None
 
     if _baseline:
+        G_z = np.array([[0.5, 0, 0.25], [0, 0.5, 0.15]])
         z = zonotope(c_z, G_z)
-        U_all, X_p_all, X_m_all, _ = create_io_state(
+        res_baseline = create_io_state(
             d,
             z,
             v,
             list(set(d.keys())),
             drop_equal=False,
             angle_filter=False,
+            method='baseline',
+            data_statistics=data_statistics,
+            clustering=False
         )
+        if res_baseline is None:
+            return
+        U_all, X_p_all, X_m_all, _ = res_baseline
         _, _, U_all_traj = split_io_to_trajs(
             X_p_all,
             X_m_all,
@@ -193,6 +203,8 @@ def reachability_for_all_modes(
     show_plot: bool = False,
     save_plot: str = None,
     load_data: bool = False,
+    data_statistics: dict = None,
+    title: str = ''
 ):
     """Reachability for all modes
 
@@ -210,9 +222,16 @@ def reachability_for_all_modes(
     R_base_all_zonos = None
     z = None
     ax = None
-    title = ""
+    if data_statistics is not None: 
+        data_statistics.update({'total_count':data_statistics['total_count']+1})
+    else:
+        print("Data statistics are not provided.")
 
     for i, (key, _label) in enumerate(test_cases.items()):
+        method = _label.split(": ")[0]
+        if method not in data_statistics.keys(): 
+            data_statistics[method] = {"memory_constraint": 0, 'data_constraint': 0}
+
         if "co" in key:
             config["original_data"] = True
         else:
@@ -223,10 +242,12 @@ def reachability_for_all_modes(
             _load=load_data, config=config, test_case=(key, _label)
         )
         _mode = mapping[key]
+
+        clustering = False
         if "Label:" in _label:
-            title = _label.split(": ")[1].replace("_", " ").title()
             color_idx = 0
         elif "Cluster:" in _label:
+            clustering = True
             if "T" in _label:
                 color_idx = 1
             else:
@@ -256,7 +277,7 @@ def reachability_for_all_modes(
         if baseline:
             baseline = True if not _b else False
 
-        _, _zonos, R_all, R_base_all = reachability_for_specific_position_and_mode(
+        result_zonotopes = reachability_for_specific_position_and_mode(
             pos,
             _mode,
             vel,
@@ -267,7 +288,14 @@ def reachability_for_all_modes(
             d=d_,
             sim=simulation,
             sind=_sind_,
+            method=method,
+            data_statistics=data_statistics,
+            clustering=clustering
         )
+        if result_zonotopes is None:
+            return 
+        
+        _, _zonos, R_all, R_base_all = result_zonotopes
         if not baseline:
             R, z = _zonos
         else:
@@ -277,7 +305,7 @@ def reachability_for_all_modes(
 
         R.color = COLORS[color_idx]
         _z.append(R)
-        _ids.append(_mode)
+        _ids.append(key)
         _z_all.update({_label: R_all})
         # except Exception as e:
         #     print(f"An error occurred: {e}, clustering: {clustering}")
@@ -288,7 +316,7 @@ def reachability_for_all_modes(
     if _b:
         _labels.insert(0, "Baseline")
         _z.insert(0, _b[0])
-        _z_all.update({_label: R_all, "baselines": R_base_all_zonos})
+        _z_all.update({"baselines": R_base_all_zonos})
 
     visualize_zonotopes(
         _z, map=ax, save_plot=save_plot, show=show_plot, _labels=_labels, title=title
@@ -338,12 +366,20 @@ def scenario_func(
     if baseline:
         _z_["baselines"] = []
     _b_ = []
+    data_statistics = {
+        "baseline": {
+            "memory_constraint": 0,
+            'data_constraint': 0,
+        },
+        "total_count": 0,
+    }
 
     for i in range(0, 1):
         save_plot_ = None
         if save_plot is not None:
             save_plot_ = save_plot + f"/{i}"
-        z, l, _b, _z = reachability_for_all_modes(
+
+        res_zonotopes = reachability_for_all_modes(
             pos=pos,
             vel=vel,
             baseline=baseline,
@@ -353,7 +389,11 @@ def scenario_func(
             show_plot=show_plot,
             save_plot=save_plot_,
             load_data=True,
+            data_statistics=data_statistics,
         )
+        if res_zonotopes is None:
+            return
+        z, l, _b, _z = res_zonotopes
 
         for k, v in _z.items():
             if v:
@@ -363,7 +403,7 @@ def scenario_func(
             _b_.append(_b[-1])
 
     _f = open(ROOT_RESOURCES + f"/scenario.pkl", "wb")
-    pickle.dump([z, l, _z, _b, _z_, _b_], _f)
+    pickle.dump([z, l, _z, _b, _z_, _b_, data_statistics], _f)
     _f.close()
 
 
@@ -409,10 +449,6 @@ def get_data(
 
     data = filter_paddings(data, padded_batches)
     labels = filter_paddings(labels, padded_batches)
-    # if 'Cluster'  in test_case[1]:
-    #     data, labels = structure_input_data_for_clusters(data, labels, max_data=250)
-    # else:
-    #     data, labels = structure_input_data(data, labels)
 
     size = len(set(labels))
     mapping = {i: i for i in range(size)}
@@ -427,9 +463,8 @@ def get_data(
     return _sind, d_, labels, mapping
 
 
-def get_initial_conditions(data: np.ndarray):
-    chunk = 0  # first chunk
-    point = -1  # first point
+def get_initial_conditions(data: np.ndarray, chunk: int = 0):
+    point = -1  # last point
     x, y, vx, vy = (
         data[chunk][point][0],
         data[chunk][point][1],
@@ -465,11 +500,11 @@ def run_scenario(
     )
 
 
-def get_test_label(test_labeling_oracle):
+def get_test_label(test_labeling_oracle, chunk:int = 0):
     trajectory, _ = test_labeling_oracle.create_chunks(save_data=False)
-    label = test_labeling_oracle.labels(trajectory, save_data=False)
+    label = test_labeling_oracle.labels(trajectory[chunk:chunk+1], save_data=False)
 
-    return trajectory, label[0]
+    return trajectory[chunk:chunk+2], label[0]
 
 
 def get_test_config(config: dict, test_name: str = "", original_data: bool = False):
@@ -477,7 +512,7 @@ def get_test_config(config: dict, test_name: str = "", original_data: bool = Fal
     config_test["data_dir"] = ROOT_RESOURCES + f"/test/{test_name}"
     config_test["original_data"] = original_data
     test_labeling_oracle = LabelingOracleSINDData(config_test)
-    return test_labeling_oracle, config_test
+    return test_labeling_oracle
 
 
 if __name__ == "__main__":
@@ -527,17 +562,27 @@ if __name__ == "__main__":
         original_data=args.original_data,
     )
 
-    for test_name in TEST_TRAJECTORIES:
-        test_labeling_oracle, config_test = get_test_config(config, test_name=test_name)
+    for test_name, chunk in TEST_TRAJECTORIES.items():
+        test_labeling_oracle = get_test_config(config, test_name=test_name)
+        test_labeling_oracle.load_data()
 
-        trajectory, l = get_test_label(test_labeling_oracle)
-        c = get_cluster(config_test, data_oracle=test_labeling_oracle)
+        trajectory, l = get_test_label(test_labeling_oracle, chunk=chunk)
+        c, distance_c = get_cluster(config, data_oracle=test_labeling_oracle, chunk=chunk)
+
+        test_labeling_oracle.config['original_data'] = True
+        co, distance_co = get_cluster(config, test_labeling_oracle, chunk=chunk)
+
+        if distance_co > 3 or distance_c > 3:
+            print("No cluster found that is close enough")
+            continue
+
         test_cases = {
             f"l_{l}": f"Label: {REVERSED_LABELS[l]}",
-            f"c_{c}": f"Transformer-based Cluster: {c}",
+            f"c_{c}": f"T-b Cluster: {c}",
+            f'co_{co}': f'Cluster: {co}'
         }
 
         print(test_cases)
         run_scenario(
-            trajectory=trajectory, config=config, labels=test_cases, show_plot=True
+            trajectory=trajectory, config=config, labels=test_cases, show_plot=True, baseline=True
         )

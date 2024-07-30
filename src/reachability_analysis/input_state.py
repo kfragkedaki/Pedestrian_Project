@@ -107,7 +107,9 @@ def create_io_state(
     classification: Union[int, List[int]],
     drop_equal: bool = True,
     angle_filter: bool = True,
-    clustering: bool = False,
+    method: str = "",
+    data_statistics: dict = None,
+    clustering: bool = False
 ) -> List[np.ndarray]:
     """Function to create D = (X-, X+, U-) in the reachability algorithm
 
@@ -140,7 +142,6 @@ def create_io_state(
         _data = data.get(classification, np.array([]))
 
     X_m, X_p, U = np.array([]), np.array([]), np.array([])
-    X_m_all, X_p_all, U_all = np.array([]), np.array([]), np.array([])
 
     _ped_poly = Polygon(pp.to_V(measurement))
     _angle_set = (
@@ -151,8 +152,9 @@ def create_io_state(
             ]
         )
         if angle_filter
-        else np.array([-np.pi, +np.pi])
+        else False
     )
+
     for _t in _data:
         _x, _y = _t[:, 0], _t[:, 1]
         _vx, _vy = _t[:, 2], _t[:, 3]
@@ -161,33 +163,36 @@ def create_io_state(
         _X_p, _X_m = _X[:, 1:], _X[:, :-1]
         _U = np.array([_vx, _vy])[:, :-1]
 
-        if _line.intersects(_ped_poly) and __in_between(
+        if (_line.intersects(_ped_poly) and __in_between(
             np.arctan2(np.mean(_vy[:3]), np.mean(_vx[:3])), _angle_set
-        ):
+        )) or clustering:
             X_p = np.hstack([X_p, _X_p]) if X_p.size else _X_p
             X_m = np.hstack([X_m, _X_m]) if X_m.size else _X_m
             U = np.hstack([U, _U]) if U.size else _U
-            
-        X_p_all = np.hstack([X_p_all, _X_p]) if X_p_all.size else _X_p
-        X_m_all = np.hstack([X_m_all, _X_m]) if X_m_all.size else _X_m
-        U_all = np.hstack([U_all, _U]) if U_all.size else _U
 
     if X_p.size == 0:
-        X_p = X_p_all
-        X_m = X_m_all
-        U = U_all
+        print(f"Skipped Method: {method}")
+        if data_statistics is not None:
+            data_statistics[method].update({'data_constraint':data_statistics[method]['data_constraint']+1})
+        return
 
+    if X_p.shape[1]/_data.shape[1] > 300:
+        print(f"Skipped Method (too many data): {method}")
+        if data_statistics is not None:
+            data_statistics[method].update({'memory_constraint':data_statistics[method]['memory_constraint']+1})
+        return
+
+    print("X_p.size", X_p.size, X_p.shape)
+    print("data_statistics", data_statistics)
     U_d = U
-    if drop_equal:
-        X_p, _ids = __drop_equal(X_p)
-        X_m = np.delete(X_m, _ids, axis=1)
-        U_d = np.delete(U, _ids, axis=1)
 
     return [U_d, X_p, X_m, U]
 
 
 def __in_between(val, angle_range):
     """Check if the angle 'val' is within the range defined by 'angle_range'."""
+    if angle_range is False:
+        return True
     assert angle_range.shape[0] == 2
     angle_min = angle_range[0]
     angle_max = angle_range[1]
