@@ -385,5 +385,5 @@ def visualize(list_of_objects: Union[List[pp.zonotope], List[np.ndarray]], ax: p
         for i in range(len(list_of_objects)):
             circs.append(Line2D([0], [0], linestyle="none", marker='s', markersize=8,
                                 markerfacecolor=list_of_objects[i].color, markeredgecolor=list_of_objects[i].color))
-        if len(list_of_objects) != 0:
+        if len(list_of_objects) != 0: 
             ax.legend(circs, _labels_, numpoints=1, loc="upper right")

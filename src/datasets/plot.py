@@ -410,10 +410,13 @@ class SVEAMap(Map):
             new_size = (161.156, 54.925)
             resized_image = resize(im, new_size, anti_aliasing=True)
             # Resize the image
-            ax.imshow(resized_image, zorder=-1, alpha=0.5, extent=(0, 161.156, -30, 24.925))
+            ax.imshow(resized_image, zorder=-1, alpha=0.5, extent=(-30, 131.156, -30, 24.925))
             # Optionally, set the axes limits to the dimensions of the image
-            ax.set_xlim(60, 120)
-            ax.set_ylim(-10, 10)
+            ax.set_xlim(50, 90)
+            ax.set_ylim(-15, 15)
+
+            # ax.set_xlim(-100, 100)
+            # ax.set_ylim(-100, 100)
 
         # _points = self.get_area("")
         # _points

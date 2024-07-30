@@ -303,9 +303,10 @@ def  scenario_func(trajectory: np.array, pos: np.ndarray, vel: np.ndarray, confi
 
 def get_data(_load: bool = False, _sind: any = None, config: dict = None, test_case: tuple = (0, 'Label')):
     """Calculate the data separation to each class"""
-    if not _sind:
-        # TODO sometimes we will want to choose a different type of Labeling Oracle
+    if not _sind and config['data_class'] == 'ros':
         _sind = LabelingOracleROSData(config)
+    elif not _sind and config['data_class'] == 'sind':
+        _sind = LabelingOracleSINDData(config)
 
     if os.path.exists(os.path.join(config['output_dir'], 'clusters')):
         clusters_root = os.path.join(config['output_dir'], 'clusters')
