@@ -126,7 +126,9 @@ class BaseData(object):
     def _gather_data_paths(self, root_dir, pattern):
         # Implementation to gather data paths  based on a given pattern
         data_paths = []  # list of all paths
+        print('root_dir', root_dir)
         for root, dirs, files in os.walk(root_dir):
+            print(root, files)
             for file in files:
                 data_paths.append(os.path.join(root, file))
 
@@ -164,33 +166,25 @@ class BaseData(object):
 
     @staticmethod
     def remove_small_chunks(df, min_size=2):
+        """Parameters:
+        - df: The dataframe to process.
+        - min_size: The minimum number of points a chunk must have to be retained.
+        Returns:
+        - The filtered dataframe.
         """
-        Process a message and update all_df. Ensure that each trajectory has a max of config['data_chunk_len'] points stored
-        """
-        frame_id = msg.header.seq
-        timestamp_ms = msg.header.stamp.secs * 1000 + msg.header.stamp.nsecs / 1e6 
+        # Group by global_chunk_id and filter
+        filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
+        return filtered_df
 
-        for person in msg.personstate:
-            track_id = person.id
-            x = person.pose.position.x
-            y = person.pose.position.y
-            vx = person.velocity * np.cos(person.direction)
-            vy = person.velocity * np.sin(person.direction)
-            ax = 0
-            ay = 0
 
-            if track_id not in self.all_IDs:
-                self.all_IDs.append(track_id)
-                self.id_counts[track_id] = 0
-
-            if self.id_counts[track_id] == self.max_seq_len: 
-                just_this_id = self.all_df[self.all_df['track_id'] == track_id]
-                self.all_df = self.all_df[~((self.all_df['track_id'] == track_id) & self.all_df[self.all_df['frame_id'] == min(just_this_id['frame_id'])])]
-            else:
-                self.id_counts[track_id] += 1
-
-            row = [track_id, frame_id, timestamp_ms, x, y, vx, vy, ax, ay]
-            self.all_df.append(row)
+    def reassign_chunk_indices(self, df):
+        # Create a unique list of the old chunk indices
+        unique_chunks = df['data_chunk_len'].unique()
+        # Create a mapping from old to new indices
+        chunk_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)}
+        # Map the old indices to new indices
+        df['data_chunk_len'] = df['data_chunk_len'].map(chunk_mapping)
+        return df
 
 
 
@@ -219,32 +213,32 @@ class SINDData(BaseData):
         self.max_seq_len = self.config["data_chunk_len"]
 
     def load_data(self):
-            # Load and preprocess data
-            self.all_df = self.load_all(
-                self.config["data_dir"], pattern=self.config["pattern"]
-            )  # 508644
+        # Load and preprocess data
+        self.all_df = self.load_all(
+            self.config["data_dir"], pattern=self.config["pattern"]
+        )  # 508644
 
-            max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
-            self.max_seq_len = (
-                self.config["data_chunk_len"] if self.config["data_chunk_len"] != 0 else max_seq_len
-            )
+        max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
+        self.max_seq_len = (
+            self.config["data_chunk_len"] if self.config["data_chunk_len"] != 0 else max_seq_len
+        )
 
-            if self.config["data_chunk_len"] is not None:
-                self.all_df = self.assign_chunk_idx(self.all_df, self.config["data_chunk_len"])
-                # Remove chunks with less than 2 points
-                self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
-                # Reassign chunk indices
-                self.all_df = self.reassign_chunk_indices(self.all_df)
-            else:
-                self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
+        if self.config["data_chunk_len"] is not None:
+            self.all_df = self.assign_chunk_idx(self.all_df, self.config["data_chunk_len"])
+            # Remove chunks with less than 2 points
+            self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
+            # Reassign chunk indices
+            self.all_df = self.reassign_chunk_indices(self.all_df)
+        else:
+            self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
 
-            self.all_df["unique_int_id"], _ = pd.factorize(self.all_df["track_id"])
-            self.all_df = self.all_df.set_index("data_chunk_len")
-            self.all_IDs = (
-                self.all_df.index.unique()
-            )  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
+        self.all_df["unique_int_id"], _ = pd.factorize(self.all_df["track_id"])
+        self.all_df = self.all_df.set_index("data_chunk_len")
+        self.all_IDs = (
+            self.all_df.index.unique()
+        )  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
 
-            self.feature_df = self.all_df[self.feature_names]
+        self.feature_df = self.all_df[self.feature_names]
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -415,8 +409,8 @@ class ROSData(BaseData):
             # Extract the required fields, ignoring null rows
             if len(lines) > 15: 
                 id_val = int(lines[0].split(': ')[1])
-                x = float(lines[5].split(': ')[1])
-                y = float(lines[6].split(': ')[1])
+                x = float(lines[4].split(': ')[1])
+                y = float(lines[5].split(': ')[1])
                 vx = float(lines[12].split(': ')[1])
                 vy = float(lines[13].split(': ')[1])
                 ax = float(lines[14].split(': ')[1])
@@ -544,28 +538,31 @@ class SVEAData(BaseData):
 
     def process_message(self, msg):
         """
-        Removes chunks from the dataframe that have fewer than min_size points.
-
-        Parameters:
-        - df: The dataframe to process.
-        - min_size: The minimum number of points a chunk must have to be retained.
-
-        Returns:
-        - The filtered dataframe.
+        Process a message and update all_df. Ensure that each trajectory has a max of config['data_chunk_len'] points stored
         """
-        # Group by global_chunk_id and filter
-        filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
-        return filtered_df
-    
-    
-    def reassign_chunk_indices(self, df):
-        # Create a unique list of the old chunk indices
-        unique_chunks = df['data_chunk_len'].unique()
-        # Create a mapping from old to new indices
-        chunk_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)}
-        # Map the old indices to new indices
-        df['data_chunk_len'] = df['data_chunk_len'].map(chunk_mapping)
-        return df
+        frame_id = msg.header.seq
+        timestamp_ms = msg.header.stamp.secs * 1000 + msg.header.stamp.nsecs / 1e6 
+
+        for person in msg.personstate:
+            track_id = person.id
+            x = person.pose.position.x
+            y = person.pose.position.y
+            vx = person.velocity * np.cos(person.direction)
+            vy = person.velocity * np.sin(person.direction)
+            ax = 0
+            ay = 0
+
+            if track_id not in self.all_IDs:
+                self.all_IDs.append(track_id)
+                self.id_counts[track_id] = 0
+
+            if self.id_counts[track_id] == self.max_seq_len: 
+                just_this_id = self.all_df[self.all_df['track_id'] == track_id]
+                self.all_df = self.all_df[~((self.all_df['track_id'] == track_id) & self.all_df[self.all_df['frame_id'] == min(just_this_id['frame_id'])])]
+            else:
+                self.id_counts[track_id] += 1
+            row = [track_id, frame_id, timestamp_ms, x, y, vx, vy, ax, ay]
+            self.all_df.append(row)
 
 
 data_factory = {"sind": SINDData, 'ros' : ROSData, 'svea' : SVEAData}

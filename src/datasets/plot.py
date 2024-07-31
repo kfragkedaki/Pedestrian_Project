@@ -394,22 +394,6 @@ class SVEAMap(Map):
     def __init__(self, map_dir: str = "seven-eleven.osm"):
         super().__init__(map_dir)
 
-    @staticmethod
-    def rotate_about_point(image, angle, point):
-        # Calculate the shifts
-        shift_y, shift_x = np.array(image.shape[:2]) / 2.0 - np.array(point)
-
-        # Shift the image to bring the point to the center
-        shifted_image = shift(image, shift=[shift_y, shift_x, 0])
-
-        # Rotate the image around the center
-        rotated_image = rotate(shifted_image, angle, reshape=False)
-
-        # Shift the image back to the original position
-        final_image = shift(rotated_image, shift=[-shift_y, -shift_x, 0])
-
-        return final_image
-
     def plot_areas(
         self,
         ax=None,
@@ -420,16 +404,20 @@ class SVEAMap(Map):
             fig, ax = plt.subplots()
             fig.set_size_inches(6.5, 4.13)
             fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
-            im = plt.imread(ROOT + "/seven-eleven3.png")
+            im = plt.imread(ROOT + "/seven-eleven.png")
             # Define the new size (for example, half the original size)
             # Define the new size
             new_size = (161.156, 54.925)
             resized_image = resize(im, new_size, anti_aliasing=True)
             # Resize the image
-            ax.imshow(resized_image, zorder=-1, alpha=0.5, extent=(-30, 131.156, -30, 24.925))
+            ax.imshow(resized_image, zorder=-1, alpha=0.5, extent=(-80, 80, -34, 20))
+            # ax.imshow(im, zorder=-1, alpha=0.5, extent=(-25, 25, -25, 25))
             # Optionally, set the axes limits to the dimensions of the image
             ax.set_xlim(50, 90)
             ax.set_ylim(-15, 15)
+
+            ax.set_xlim(-30, 10)
+            ax.set_ylim(-25, 15)
 
             # ax.set_xlim(-100, 100)
             # ax.set_ylim(-100, 100)

@@ -128,6 +128,7 @@ def reachability_for_specific_position_and_mode(
 
     if _baseline:
         G_z = np.array([[0.5, 0, 0.25], [0, 0.5, 0.15]])
+        # G_z = np.array([[4, 0, 2], [0, 4, 1.2]])
         z = zonotope(c_z, G_z)
         res_baseline = create_io_state(
             d,
@@ -414,10 +415,11 @@ def get_data(
     test_case: tuple = (0, "Label"),
 ):
     """Calculate the data separation to each class"""
-    if not _sind and config['data_class'] == 'ros':
-        _sind = LabelingOracleROSData(config)
-    elif not _sind and config['data_class'] == 'sind':
-        _sind = LabelingOracleSINDData(config)
+    # if config['data_class'] == 'ros':
+    #     _sind = LabelingOracleROSData(config)
+    # elif config['data_class'] == 'sind':
+    #     _sind = LabelingOracleSINDData(config)
+    _sind = LabelingOracleROSData(config)
 
     if os.path.exists(os.path.join(config["output_dir"], "clusters")):
         clusters_root = os.path.join(config["output_dir"], "clusters")

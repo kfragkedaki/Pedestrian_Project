@@ -182,8 +182,6 @@ def create_io_state(
             data_statistics[method].update({'memory_constraint':data_statistics[method]['memory_constraint']+1})
         return
 
-    print("X_p.size", X_p.size, X_p.shape)
-    print("data_statistics", data_statistics)
     U_d = U
 
     return [U_d, X_p, X_m, U]

@@ -24,20 +24,20 @@ def load_config(config_filepath):
         config = json.load(cnfg)
 
     keys_to_delete = [
-        "load_model",
+        # "load_model", TODO Claire revisit keys_to_delete
         "eval_only",
-        "pos_encoding",
-        "pattern",
-        "data_class",
-        "data_dir",
-        "experiment_name",
-        "comment",
-        "hyperparameter_tuning",
-        "output_dir",
-        "save_embeddings",
-        "val_ratio",
-        "dropout",
-        "exclude_feats",
+        # "pos_encoding",
+        # "pattern",
+        # "data_class",
+        # "data_dir",
+        # "experiment_name",
+        # "comment",
+        # "hyperparameter_tuning",
+        # "output_dir",
+        # "save_embeddings",
+        # "val_ratio",
+        # "dropout",
+        # "exclude_feats",
     ]
 
     for key in keys_to_delete:
