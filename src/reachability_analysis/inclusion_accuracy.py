@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pickle
 from tqdm import tqdm
 from copy import deepcopy
-from src.reachability_analysis.operations import is_inside
+from src.reachability_analysis.operations import is_inside, zonotope_area
 from src.reachability_analysis.labeling_oracle import LABELS
 from src.reachability_analysis.simulation import (
     reachability_for_all_modes,
@@ -197,8 +197,8 @@ def _simulation(
         },
         "total_count": 0,
         "distances_failed": {
-            "T-b Cluster": 0,
-            "Cluster": 0
+            "Transformer-encoded": 0,
+            "Non-encoded": 0
         }
     }
 
@@ -235,12 +235,12 @@ def _simulation(
                     plotted_path, l = get_test_label(test_labeling_oracle)
                     c, distance_c = get_cluster(config, test_labeling_oracle)
                     test_cases = {
-                        f"l_{l}": f"Label: {REVERSED_LABELS[l]}",
-                        f"c_{c}": f"T-b Cluster: {c}",
+                        f"l_{l}": f"Labeling: {REVERSED_LABELS[l]}",
+                        f"c_{c}": f"Transformer-encoded: {c}",
                     }
 
                     if distance_c > 3:
-                        data_statistics["distances_failed"].update({"T-b Cluster": data_statistics["distances_failed"]["T-b Cluster"]+1})
+                        data_statistics["distances_failed"].update({"Transformer-encoded": data_statistics["distances_failed"]["Transformer-encoded"]+1})
 
                     if original_data:
                         test_labeling_oracle_original.all_df = trajectory.set_index("track_id")
@@ -251,17 +251,17 @@ def _simulation(
                         co, distance_co = get_cluster(
                             config, test_labeling_oracle_original
                         )
-                        test_cases[f"co_{co}"] = f"Cluster: {co}"
+                        test_cases[f"co_{co}"] = f"Non-encoded: {co}"
 
                         if distance_co > 3:
-                            print("Clustering: No cluster found with relatively low distance. Distance: ", distance_co)
+                            print("Non-encoded Trajectory Clustering: No cluster found with relatively low distance. Distance: ", distance_co)
                             print(f"Data Statistics: {data_statistics['distances_failed']}")
                             data_statistics["distances_failed"].update(
-                                {"Cluster": data_statistics["distances_failed"]["Cluster"] + 1})
+                                {"Non-encoded": data_statistics["distances_failed"]["Non-encoded"] + 1})
                             continue
 
                     if distance_c > 3:
-                        print("T-b-Clustering: No cluster found with relatively low distance. Distance: ", distance_c)
+                        print("Transformer-encoded Trajectory Clustering: No cluster found with relatively low distance. Distance: ", distance_c)
                         print(f"Data Statistics: {data_statistics['distances_failed']}")
                         continue
 
@@ -317,6 +317,11 @@ def _simulation(
         RA_l, RA_c, RA_co, RA_b, data_statistics, _frames = pickle.load(_f)
         _f.close()
 
+    RA_c_volume, i_c_volume = 0, 0
+    RA_l_volume, i_l_volume = 0, 0
+    RA_b_volume, i_b_volume = 0, 0
+    RA_co_volume, i_co_volume = 0, 0
+
     RA_b_acc = np.array([0] * input_len)
     RA_l_acc = np.array([0] * input_len)
     RA_c_acc = np.array([0] * input_len)
@@ -346,31 +351,55 @@ def _simulation(
                         # T-f Clsuters
                         if RA_c[frame]:
                             zono = _z_c_all[k]
-                            _inside = int(is_inside(zono, pos_k))
-                            RA_c_acc[k] += _inside
-                            i_c[k] += 1
+                            if zonotope_area(zono) < 1000:
+                                # exclude outliers
+                                _inside = int(is_inside(zono, pos_k))
+                                RA_c_acc[k] += _inside
+                                i_c[k] += 1
+                                if _inside and k==input_len - 2:
+                                    # last zonotope
+                                    RA_c_volume += zonotope_area(zono)
+                                    i_c_volume += 1
 
                         # Original Clsuters
                         if RA_co[frame]:
                             zono = _z_co_all[k]
-                            _inside = int(is_inside(zono, pos_k))
-                            RA_co_acc[k] += _inside
-                            i_co[k] += 1
+                            if zonotope_area(zono)<1000:
+                                # exclude outliers
+                                _inside = int(is_inside(zono, pos_k))
+                                RA_co_acc[k] += _inside
+                                i_co[k] += 1
+                                if _inside and k==input_len - 2:
+                                    # last zonotope
+                                    RA_co_volume += zonotope_area(zono)
+                                    i_co_volume += 1
 
                         # Labels
                         if RA_l[frame]:
                             zono = _z_l_all[k]
-                            _inside = int(is_inside(zono, pos_k))
-                            RA_l_acc[k] += _inside
-                            i_l[k] += 1
+                            if zonotope_area(zono)<1000:
+                                # exclude outliers
+                                _inside = int(is_inside(zono, pos_k))
+                                RA_l_acc[k] += _inside
+                                i_l[k] += 1
+                                if _inside and k==input_len - 2:
+                                    # last zonotope
+                                    RA_l_volume += zonotope_area(zono)
+                                    i_l_volume += 1
 
                         # Baseline
                         if RA_b[frame] and _baseline:
-                            _inside = int(
-                                is_inside(_b[k], pos_k)
-                            )  # Does not have all zonotopes
-                            RA_b_acc[k] += _inside
-                            i_b[k] += 1
+                            if zonotope_area(_b[k])<1000:
+                                # exclude outliers
+                                _inside = int(
+                                    is_inside(_b[k], pos_k)
+                                )  # Does not have all zonotopes
+                                RA_b_acc[k] += _inside
+                                i_b[k] += 1
+                                if _inside and k==input_len - 2:
+                                    # last zonotope
+                                    RA_b_volume += zonotope_area(_b[k])
+                                    i_b_volume += 1
 
                     except Exception as err:
                         print("Error Label", err)
@@ -388,6 +417,12 @@ def _simulation(
     print(f"Data Statistics: {data_statistics}")
     _f_stats = open(ROOT_TEST + "state_inclusion_acc_statistics.pkl", "wb")
     pickle.dump(data_statistics, _f_stats)
+
+    if i_b_volume !=0 :
+        print(f"Average Volumes: Baseline: {RA_b_volume/i_b_volume}, Labeling:{RA_l_volume/i_l_volume}, \
+         Non-encoded Trajectory Clustering:{RA_co_volume/i_co_volume}, Transformer-encoded Trajectory Clustering:{RA_c_volume/i_c_volume}")
+        _f_volumes =  open(ROOT_TEST + "state_inclusion_acc_volumes.pkl", "wb")
+        pickle.dump({"baseline": [RA_b_volume, i_b_volume], "labeling": [RA_l_volume, i_l_volume], "clustering": [RA_co_volume, i_co_volume], "transformer": [RA_c_volume, i_c_volume]}, _f_volumes)
 
     print(
         f"Labeling Acurracy: {RA_l_acc / _i_l}, T-f Clustering Accuracy: {RA_c_acc / _i_c}, Baseline Accuracy: {RA_b_acc/_i_b}"
@@ -450,14 +485,15 @@ def visualize_state_inclusion_acc(
     fig.subplots_adjust(top=0.96, left=0.090, bottom=0.165, right=0.93)
 
     _x = np.array(list(range(2, len(RA_l_acc) + 1))) / 10
-    ax.plot(_x, RA_l_acc[1:], "--", color=COLORS[0], label="Labeling")
-    ax.plot(_x, RA_c_acc[1:], "-", color=COLORS[1], label="Transformer-based Clustering")
-
-    if original_data:
-        ax.plot(_x, RA_co_acc[1:], ":", color=COLORS[3], label="Clustering", lw=1.8)
-
     if baseline:
         plt.plot(_x, RA_b_acc[1:], "-.", color=COLORS[2], label="Baseline")
+    ax.plot(_x, RA_l_acc[1:], "--", color=COLORS[0], label="Labeling")
+
+    if original_data:
+        ax.plot(_x, RA_co_acc[1:], ":", color=COLORS[3], label="Non-encoded", lw=1.8)
+
+    ax.plot(_x, RA_c_acc[1:], "-", color=COLORS[1], label="Transformer-encoded")
+
 
     ax.set_ylim([0, 110]), ax.set_xlim([0, 5])
     ax.yaxis.set_minor_locator(tck.AutoMinorLocator())
@@ -473,27 +509,43 @@ def visualize_state_inclusion_acc(
 
     if convergence:
         ax1 = ax.twinx()
-        ax1.set_yticks([85], ["85%"])
-        ax1.tick_params(axis="y", colors=COLORS[3], labelsize=10)
+        ax1.set_yticks([86], ["86%"])
+        ax1.tick_params(axis="y", colors=COLORS[3], labelsize=10) # Cluster
         ax1.grid(alpha=0.6)
         ax1.set_ylim([0, 110])
         ax1.yaxis.set_ticks_position(side)
+
         ax2 = ax.twinx()
-        ax2.set_yticks([96], ["96%"])
-        ax2.tick_params(axis="y", colors=COLORS[1], labelsize=10)
+        ax2.set_yticks([94], ["94%"])
+        ax2.tick_params(axis="y", colors=COLORS[1], labelsize=10) # T-b
         ax2.grid(alpha=0.6)
         ax2.set_ylim([0, 110])
         ax2.yaxis.set_ticks_position(side)
         ax3 = ax.twinx()
-        ax3.set_yticks([99], ["99%"])
-        ax3.tick_params(axis="y", colors=COLORS[2], labelsize=10)
+        ax3.set_yticks([98], ["98%"])
+        ax3.tick_params(axis="y", colors=COLORS[2], labelsize=10) # Baseline
         ax3.grid(alpha=0.6)
         ax3.set_ylim([0, 110])
+        ax3.yaxis.set_ticks_position(side)
+
+        ax4 = ax.twinx()
+        ax4.set_yticks([90], ["90%"])
+        ax4.tick_params(axis="y", colors=COLORS[0], labelsize=10) # Baseline
+        ax4.grid(alpha=0.6)
+        ax4.set_ylim([0, 110])
+        ax4.yaxis.set_ticks_position(side)
+
         # Adjust label position by offsetting
         for label in ax3.get_yticklabels():
             label.set_verticalalignment('bottom')  # Adjusts vertical alignment to move label up
 
-        ax3.yaxis.set_ticks_position(side)
+        # Adjust label position by offsetting
+        for label in ax2.get_yticklabels():
+            label.set_verticalalignment('baseline')  # Adjusts vertical alignment to move label up
+
+        # Adjust label position by offsetting
+        for label in ax1.get_yticklabels():
+            label.set_verticalalignment('top')  # Adjusts vertical alignment to move label up
 
     plt.savefig(ROOT_TEST + "accuracy.png", dpi=300, bbox_inches="tight")
     plt.show()
@@ -506,10 +558,10 @@ def get_state_inclusion_acc(config, original_data=False):
     this, try decreasing the value of the 'frames' argument.
     """
     _simulation(
-        load_data=False, config=config, _baseline=True, original_data=original_data
+        load_data=True, config=config, _baseline=True, original_data=original_data
     )
     visualize_state_inclusion_acc(
-        baseline=True, convergence=True, original_data=original_data
+         baseline=True, convergence=True, original_data=original_data
     )
 
 

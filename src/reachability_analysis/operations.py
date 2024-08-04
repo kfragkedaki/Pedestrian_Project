@@ -391,7 +391,7 @@ def visualize(
     if type(ax) == type(None):
         _, ax = plt.subplots()
 
-    plt.rcParams.update({"font.size": 9})
+    plt.rcParams.update({"font.size": 11})
 
     p_list, x_all = [], np.empty((0, 2))
     mypolygon = None
@@ -430,9 +430,9 @@ def visualize(
         ax.set_ylim([np.min(x_all[:, 1]) - a, a + np.max(x_all[:, 1])])
     if grid:
         ax.grid(color=(0, 0, 0), linestyle="--", linewidth=0.3)
-    ax.set_title(title, size=16)
-    ax.set_xlabel("$x$", size=12)
-    ax.set_ylabel("$y$", size=12)
+    ax.set_title(title, size=22)
+    ax.set_xlabel("$x$")
+    ax.set_ylabel("$y$")
     if equal_axis:
         ax.axis("equal")
     if _labels:
@@ -451,5 +451,13 @@ def visualize(
                     markeredgecolor=list_of_objects[i].color,
                 )
             )
+
+        # move label for current position next to path
+        _labels_.insert(2, _labels_.pop())
+        circs.insert(2, circs.pop())
+
+        # move label for labeling if last
+        # _labels_.insert(4, _labels_.pop())
+        # circs.insert(4, circs.pop())
         if len(list_of_objects) != 0:
             ax.legend(circs, _labels_, numpoints=1, loc="lower left")

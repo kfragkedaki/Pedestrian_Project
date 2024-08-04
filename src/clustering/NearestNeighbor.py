@@ -91,7 +91,7 @@ class AnnoyModel(ApproximateNearestNeighbors):
         self.index.load(filepath)
 
     def query(self, data, k=1):
-        return self.index.get_nns_by_vector(data, k, include_distances=True)
+        return self.index.get_nns_by_vector(data, k, search_k=1000,include_distances=True)
 
     def build(self):
         self.build_index()

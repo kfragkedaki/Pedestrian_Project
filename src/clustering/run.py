@@ -221,7 +221,7 @@ def get_embedding(config: dict, data_oracle: LabelingOracleSINDData):
 
     # Perform the evaluation
     aggr_metrics, embedding_data = evaluate(
-        val_evaluator, config=config, save_embeddings=True
+        val_evaluator, config=config, save_embeddings=True, save_data=False
     )
 
     return embedding_data
@@ -268,6 +268,8 @@ def run_clusters(
         padding_masks,
         target_masks,
     ) = load_data(config)
+
+    print(all_data_original.shape, all_data.shape, all_embeddings.shape, all_embeddings_original.shape, all_predictions.shape, padding_masks.shape)
 
     if plot_data:
         plot_data(padding_masks, all_data_original, all_data, all_predictions, config)
