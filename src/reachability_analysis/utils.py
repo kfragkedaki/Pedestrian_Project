@@ -5,7 +5,10 @@ import os
 
 ROOT = os.getcwd()
 
-def load_data(filename: str = "sind.pkl", filepath: str = ROOT + "/resources/") -> np.ndarray:
+
+def load_data(
+    filename: str = "sind.pkl", filepath: str = ROOT + "/resources/"
+) -> np.ndarray:
     """Load previously pickled data
 
     Parameters:

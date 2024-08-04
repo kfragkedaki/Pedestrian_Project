@@ -40,7 +40,7 @@ def run(config, session=None):
         logger.info("Device index: {}".format(torch.cuda.current_device()))
 
     ## Build and split data
-    train_loader, val_loader, data = load_data(config, logger)
+    train_loader, val_loader, data = load_data(config, logger, save_data=True)
 
     # Create model
     model, optimizer, trainer, val_evaluator, start_epoch = create_model(
@@ -49,7 +49,7 @@ def run(config, session=None):
 
     if config["eval_only"]:
         logger.info("Evaluating model ...")
-        evaluate(val_evaluator, config, save_embeddings=config["save_embeddings"])
+        evaluate(val_evaluator, config, save_embeddings=config["save_embeddings"], save_data=True)
     else:
         logger.info("Starting training...")
 

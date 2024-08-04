@@ -6,6 +6,7 @@ from src.datasets.masked_datasets import ImputationDataset, collate_unsuperv
 import os
 import torch
 
+
 def load_task_datasets(config):
     """For the task specified in the configuration returns the corresponding combination of
     Task-specific Dataset class and collate function."""
@@ -28,11 +29,12 @@ def load_task_datasets(config):
         raise NotImplementedError("Task '{}' not implemented".format(task))
 
 
-def load_data(config, logger):
+def load_data(config, logger, save_data=True):
     """Load data, and split train and test dataset. If eval_only then only val_dataset will be created."""
     logger.info("Loading and preprocessing data ...")
     data_class = data_factory[config["data_class"]]
     my_data = data_class(config, n_proc=config["n_proc"])
+    my_data.load_data()
     # my_data.tensor_3d.shape[0], (my_data.all_df.groupby(by='track_id').size()/60).sum() # TODO CHECK TENSOR
 
     # Split dataset
@@ -55,12 +57,14 @@ def load_data(config, logger):
     )
     train_data = my_data.feature_df.loc[train_indices]
     val_data = my_data.feature_df.loc[val_indices]
-    
-    if config["val_ratio"] == 1:
+
+    if config["val_ratio"] == 1 and save_data:
         # save original data for evaluation
-        outputs_filepath = os.path.join(os.path.join(config["output_dir"], "original_data.pt"))
-        torch.save({'val_data': val_data}, outputs_filepath)
-    
+        outputs_filepath = os.path.join(
+            os.path.join(config["output_dir"], "original_data.pt")
+        )
+        torch.save({"val_data": val_data}, outputs_filepath)
+
     # Pre-process features
     if config["data_normalization"] != "none":
         logger.info("Normalizing data ...")

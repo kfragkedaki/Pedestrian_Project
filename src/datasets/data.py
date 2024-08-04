@@ -79,7 +79,9 @@ class Normalizer(object):
             max_vals = grouped.transform("max")
             return df * (max_vals - min_vals) + min_vals
         else:
-            raise NameError(f'Inverse normalize method "{self.norm_type}" not implemented')
+            raise NameError(
+                f'Inverse normalize method "{self.norm_type}" not implemented'
+            )
 
 
 class BaseData(object):
@@ -110,34 +112,39 @@ class SINDData(BaseData):
         n_proc = config["n_proc"] if n_proc is None else n_proc
         self.set_num_processes(n_proc=n_proc)
         self.config = config
-
-        # Load and preprocess data
-        self.all_df = self.load_all(
-            config["data_dir"], pattern=config["pattern"]
-        )  # 508644
-
-        max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
-        self.max_seq_len = (
-            config["data_chunk_len"] if config["data_chunk_len"] != 0 else max_seq_len
-        )
-
-        if config["data_chunk_len"] is not None:
-            self.all_df = self.assign_chunk_idx(self.all_df, config["data_chunk_len"])
-            # Remove chunks with less than 2 points
-            self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
-            # Reassign chunk indices
-            self.all_df = self.reassign_chunk_indices(self.all_df)
-        else:
-            self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
-
-        self.all_df["unique_int_id"], _ = pd.factorize(self.all_df["track_id"])
-        self.all_df = self.all_df.set_index("data_chunk_len")
-        self.all_IDs = (
-            self.all_df.index.unique()
-        )  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
-
         self.feature_names = ["x", "y", "vx", "vy", "ax", "ay"]
-        self.feature_df = self.all_df[self.feature_names]
+        self.all_df = None
+        self.all_IDs = None
+        self.feature_df = None
+        self.max_seq_len = self.config["data_chunk_len"]
+
+    def load_data(self):
+            # Load and preprocess data
+            self.all_df = self.load_all(
+                self.config["data_dir"], pattern=self.config["pattern"]
+            )  # 508644
+
+            max_seq_len = self.all_df.groupby(by="track_id").size().max()  # 11726 8_7_1_P1
+            self.max_seq_len = (
+                self.config["data_chunk_len"] if self.config["data_chunk_len"] != 0 else max_seq_len
+            )
+
+            if self.config["data_chunk_len"] is not None:
+                self.all_df = self.assign_chunk_idx(self.all_df, self.config["data_chunk_len"])
+                # Remove chunks with less than 2 points
+                self.all_df = self.remove_small_chunks(self.all_df, min_size=2)
+                # Reassign chunk indices
+                self.all_df = self.reassign_chunk_indices(self.all_df)
+            else:
+                self.all_df["data_chunk_len"] = self.all_df["unique_int_id"]
+
+            self.all_df["unique_int_id"], _ = pd.factorize(self.all_df["track_id"])
+            self.all_df = self.all_df.set_index("data_chunk_len")
+            self.all_IDs = (
+                self.all_df.index.unique()
+            )  # all sample (session) IDs # 13088 # CHECK THE TIMESTAMP
+
+            self.feature_df = self.all_df[self.feature_names]
 
     def load_all(self, root_dir, pattern=None):
         """
@@ -271,15 +278,16 @@ class SINDData(BaseData):
         # Group by global_chunk_id and filter
         filtered_df = df.groupby("data_chunk_len").filter(lambda x: len(x) >= min_size)
         return filtered_df
-    
-    
+
     def reassign_chunk_indices(self, df):
         # Create a unique list of the old chunk indices
-        unique_chunks = df['data_chunk_len'].unique()
+        unique_chunks = df["data_chunk_len"].unique()
         # Create a mapping from old to new indices
-        chunk_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)}
+        chunk_mapping = {
+            old_idx: new_idx for new_idx, old_idx in enumerate(unique_chunks)
+        }
         # Map the old indices to new indices
-        df['data_chunk_len'] = df['data_chunk_len'].map(chunk_mapping)
+        df["data_chunk_len"] = df["data_chunk_len"].map(chunk_mapping)
         return df
 
 
