@@ -19,10 +19,19 @@ ROOT = os.getcwd()
 
 def run(hyperparameter_config: dict):
     # Pretty print the run args
-    hyperparameter_config["data_dir"] = ROOT + "/resources/SinD/Data"
+    # hyperparameter_config["data_dir"] = ROOT + "/resources/SinD/Data"
+    # hyperparameter_config["data_class"] = "sind"
+    # hyperparameter_config["pattern"] = "Ped_smoothed_tracks"
+    # hyperparameter_config["pos_encoding"] = "learnable"
+    # hyperparameter_config["name"] = "SINDDataset_pretrained"
+    # hyperparameter_config["comment"] = (
+    #     "pretraining_through_imputation-hyperparameter_tuning"
+    # )
+    # hyperparameter_config["output_dir"] = ROOT + "/ray_results"
+
+    hyperparameter_config["data_dir"] = ROOT + "/bags"
     hyperparameter_config["data_class"] = "sind"
-    hyperparameter_config["pattern"] = "Ped_smoothed_tracks"
-    hyperparameter_config["data_class"] = "sind"
+    hyperparameter_config["pattern"] = "aggregated_data"
     hyperparameter_config["pos_encoding"] = "learnable"
     hyperparameter_config["name"] = "SINDDataset_pretrained"
     hyperparameter_config["comment"] = (

@@ -57,6 +57,7 @@ def create_model(config, train_loader, val_loader, data, logger, device):
     start_epoch = 0
 
     # Load model and optimizer state
+    # config['load_model'] = '/home/sam/Desktop/Pedestrian_Project/experiments/SINDDataset_pretrained_2024-08-01_11-37-49_uSE/checkpoints/model_best.pth'
     if config["load_model"]:
         model, optimizer, start_epoch = load_model(
             model,

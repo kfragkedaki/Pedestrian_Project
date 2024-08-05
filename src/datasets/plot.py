@@ -404,7 +404,7 @@ class SVEAMap(Map):
             fig, ax = plt.subplots()
             fig.set_size_inches(6.5, 4.13)
             fig.subplots_adjust(top=0.95, left=0.08, bottom=0.1, right=0.95)
-            im = plt.imread(ROOT + "/seven-eleven.png")
+            im = plt.imread(ROOT + "seven-eleven.png")
             # Define the new size (for example, half the original size)
             # Define the new size
             new_size = (161.156, 54.925)

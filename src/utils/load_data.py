@@ -33,6 +33,7 @@ def load_data(config, logger):
     """Load data, and split train and test dataset. If eval_only then only val_dataset will be created."""
     logger.info("Loading and preprocessing data ...")
     data_class = data_factory[config["data_class"]]
+    print('data_dir', config['data_dir'])
     my_data = data_class(config, n_proc=config["n_proc"])
     my_data.load_data() # TODO Claire edit this in the staging branch
     # my_data.tensor_3d.shape[0], (my_data.all_df.groupby(by='track_id').size()/60).sum() # TODO CHECK TENSOR
