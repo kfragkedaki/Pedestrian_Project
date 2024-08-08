@@ -128,7 +128,6 @@ def reachability_for_specific_position_and_mode(
 
     if _baseline:
         G_z = np.array([[0.5, 0, 0.25], [0, 0.5, 0.15]])
-        # G_z = np.array([[4, 0, 2], [0, 4, 1.2]])
         z = zonotope(c_z, G_z)
         res_baseline = create_io_state(
             d,
@@ -238,6 +237,7 @@ def reachability_for_all_modes(
         else:
             config["original_data"] = False
 
+        key_name= key.split("_")[0]
         key = int(key.split("_")[1])
         _sind_, d_, _, mapping = get_data(
             _load=load_data, config=config, test_case=(key, _label)
@@ -245,14 +245,14 @@ def reachability_for_all_modes(
         _mode = mapping[key]
 
         clustering = False
-        if "Label:" in _label:
+        if "l" in _label:
             color_idx = 0
-        elif "Cluster:" in _label:
+        elif "c" in key_name:
             clustering = True
-            if "T" in _label:
-                color_idx = 1
-            else:
+            if "co" in key_name:
                 color_idx = 2
+            else:
+                color_idx = 1
 
         if ax is None:
             ax = _sind_.map.plot_areas()
@@ -334,6 +334,7 @@ def scenario_func(
     baseline: bool = True,
     show_plot: bool = False,
     save_plot: str = None,
+    title: str = ''
 ):
     """
     Run scenario for a specific mode.
@@ -391,6 +392,7 @@ def scenario_func(
             save_plot=save_plot_,
             load_data=True,
             data_statistics=data_statistics,
+            title=title
         )
         if res_zonotopes is None:
             return
@@ -426,7 +428,7 @@ def get_data(
     else:
         clusters_root = ROOT_RESOURCES
 
-    if "Cluster" in test_case[1]:
+    if "Labeling" not in test_case[1]:
         # if _load:
         data = load_data(filename="/data_original.pkl", filepath=clusters_root)
         padded_batches = load_data(filename="/data_padding.pkl", filepath=clusters_root)
@@ -488,6 +490,7 @@ def run_scenario(
     baseline: bool = True,
     show_plot: bool = False,
     save_plot: str = None,
+    title: str = ''
 ):
     pos, v = get_initial_conditions(trajectory)
     if not show_path:
@@ -501,6 +504,7 @@ def run_scenario(
         baseline=baseline,
         show_plot=show_plot,
         save_plot=save_plot,
+        title=title
     )
 
 
@@ -581,9 +585,9 @@ if __name__ == "__main__":
             continue
 
         test_cases = {
-            f"l_{l}": f"Label: {REVERSED_LABELS[l]}",
-            f"c_{c}": f"T-b Cluster: {c}",
-            f'co_{co}': f'Cluster: {co}'
+            f"l_{l}": f"Labeling: {REVERSED_LABELS[l]}",
+            f"c_{c}": f"Transformer-encoded: {c}",
+            f'co_{co}': f'Non-encoded: {co}'
         }
 
         print(test_cases)

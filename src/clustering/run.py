@@ -221,7 +221,7 @@ def get_embedding(config: dict, data_oracle: LabelingOracleSINDData):
 
     # Perform the evaluation
     aggr_metrics, embedding_data = evaluate(
-        val_evaluator, config=config, save_embeddings=True
+        val_evaluator, config=config, save_embeddings=True, save_data=False
     )
 
     return embedding_data

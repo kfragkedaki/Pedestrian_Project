@@ -95,7 +95,7 @@ def create_model(config, train_loader, val_loader, data, logger, device):
     return model, optimizer, trainer, val_evaluator, start_epoch
 
 
-def evaluate(evaluator, config=None, save_embeddings=True):
+def evaluate(evaluator, config=None, save_embeddings=True, save_data=True):
     """Perform a single, one-off evaluation on an evaluator object (initialized with a dataset)"""
 
     eval_start_time = time.time()
@@ -105,10 +105,11 @@ def evaluate(evaluator, config=None, save_embeddings=True):
         )
     eval_runtime = time.time() - eval_start_time
 
-    outputs_filepath = os.path.join(
-        os.path.join(config["output_dir"], "output_data.pt")
-    )
-    torch.save(per_batch, outputs_filepath)
+    if save_data:
+        outputs_filepath = os.path.join(
+            os.path.join(config["output_dir"], "output_data.pt")
+        )
+        torch.save(per_batch, outputs_filepath)
 
     print_str = "Evaluation Summary: "
     for k, v in aggr_metrics.items():
@@ -132,7 +133,7 @@ def validate(
     logger.info("Evaluating on validation set ...")
     eval_start_time = time.time()
     with torch.no_grad():
-        aggr_metrics, per_batch = val_evaluator.evaluate(epoch, keep_all=True)
+        aggr_metrics, per_batch = val_evaluator.evaluate(epoch_num=epoch, keep_all=True)
     eval_runtime = time.time() - eval_start_time
     logger.info(
         "Validation runtime: {} hours, {} minutes, {} seconds\n".format(

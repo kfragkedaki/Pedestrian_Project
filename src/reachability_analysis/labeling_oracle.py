@@ -13,7 +13,7 @@ LABELS = {
     "cross_right": 1,
     "cross_straight": 2,
     "cross_illegal": 3,
-    "crossing_now": 4,
+    "cross_now": 4,
     "not_cross": 5,
     "unknown": 6,
 }
@@ -144,7 +144,7 @@ class LabelingOracleSINDData(SINDData):
                     elif _x[0] >= 14:
                         _labels.append(LABELS["cross_right"])
             elif _l.within(self.map.crosswalk_poly):
-                _labels.append(LABELS["crossing_now"])
+                _labels.append(LABELS["cross_now"])
             elif _l.within(self.map.sidewalk_poly):
                 _labels.append(LABELS["not_cross"])
             elif (
@@ -227,7 +227,6 @@ def angle_between_angles(a1: float, a2: float):
     w = np.array([np.cos(a2), np.sin(a2)])
     return np.arctan2(np.linalg.det([v, w]), np.dot(v, w))
 
-    return np.math.atan2(np.linalg.det([v, w]), np.dot(v, w))
 
 class LabelingOracleROSData(LabelingOracleSINDData):
 

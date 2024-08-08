@@ -139,6 +139,8 @@ weights*
 
 resources/*/*_original.csv
 resources/*/*/*_original.csv
+resources/test/*/*.csv
+bags/*.bag
 data_generated*
 experiments*
 *.png
